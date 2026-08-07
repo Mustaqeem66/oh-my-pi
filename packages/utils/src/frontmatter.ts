@@ -97,6 +97,10 @@ export interface FrontmatterOptions {
 	normalize?: boolean;
 	/** Level of error handling */
 	level?: "off" | "warn" | "fatal";
+	/** Repair malformed YAML frontmatter scalars */
+	repair?: boolean;
+	/** Preserve raw un-normalized frontmatter keys */
+	rawKeys?: boolean;
 }
 
 /**
@@ -107,7 +111,15 @@ export function parseFrontmatter(
 	content: string,
 	options?: FrontmatterOptions,
 ): { frontmatter: Record<string, unknown>; body: string } {
-	const { location, source, fallback, normalize = true, level = "warn" } = options ?? {};
+	const {
+		location,
+		source,
+		fallback,
+		normalize = true,
+		level = "warn",
+		repair = true,
+		rawKeys = false,
+	} = options ?? {};
 	const loc = location ?? source;
 	const frontmatter: Record<string, unknown> = { ...fallback };
 
