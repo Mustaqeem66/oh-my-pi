@@ -220,7 +220,7 @@ export async function fetchWithRetry(
 			if (signal?.aborted) throw new Error("Request was aborted");
 			const wrapped = wrapNetworkError(error);
 			if (attempt + 1 >= maxAttempts) throw wrapped;
-			await scheduler.wait(resolveDefaultDelay(defaultDelayMs, attempt, maxDelayMs), { signal });
+			await sleepBeforeRetry(resolveDefaultDelay(defaultDelayMs, attempt, maxDelayMs), signal);
 			continue;
 		}
 
@@ -234,7 +234,25 @@ export async function fetchWithRetry(
 		if (hint !== undefined && hint > maxDelayMs) return response;
 
 		const delayMs = Math.min(hint ?? resolveDefaultDelay(defaultDelayMs, attempt, maxDelayMs), maxDelayMs);
+		await sleepBeforeRetry(delayMs, signal);
+	}
+}
+
+/**
+ * Sleep between retry attempts, honouring `signal`.
+ *
+ * `scheduler.wait` rejects with its own `AbortError` ("The operation was aborted."),
+ * which neither carries the structural abort flag this codebase attaches nor matches
+ * the `"Request was aborted"` text `fetchWithRetry` documents and every other abort
+ * path here throws. Left unwrapped, a cancellation that lands while we are backing
+ * off escapes as an unclassified failure instead of an abort.
+ */
+async function sleepBeforeRetry(delayMs: number, signal: AbortSignal | undefined): Promise<void> {
+	try {
 		await scheduler.wait(delayMs, { signal });
+	} catch (error) {
+		if (signal?.aborted) throw new Error("Request was aborted");
+		throw error;
 	}
 }
 
