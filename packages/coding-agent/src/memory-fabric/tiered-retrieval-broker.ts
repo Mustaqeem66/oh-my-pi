@@ -60,9 +60,11 @@ export class TieredRetrievalBroker {
 		const startTime = Date.now();
 
 		// 1. Deterministic lane selection, narrowed to lanes we can actually query.
-		const lanes = selectMemoryLanes(request)
-			.map(laneId => this.adapters.get(laneId))
-			.filter((adapter): adapter is MemoryLaneAdapter => adapter !== undefined);
+		const lanes: MemoryLaneAdapter[] = [];
+		for (const laneId of selectMemoryLanes(request)) {
+			const adapter = this.adapters.get(laneId);
+			if (adapter) lanes.push(adapter);
+		}
 
 		// 2. Query every lane in parallel.
 		const laneResults = await Promise.all(lanes.map(lane => this.queryLane(lane, request, options)));
@@ -83,17 +85,17 @@ export class TieredRetrievalBroker {
 
 		// 4. Tier filter, deduplicate, then eligibility.
 		const excluded = new Set(request.excludeMemoryIds ?? []);
+		const eligibility = {
+			includeProvisional: options.includeProvisional,
+			includeHistorical: request.includeHistorical ?? false,
+			requestedTiers: request.requestedTiers,
+		};
 		const tierMatched = allCandidates.filter(candidate => candidateMatchesTier(candidate, request.requestedTiers));
-		const eligible = deduplicateCandidates(tierMatched).filter(
-			candidate =>
-				!excluded.has(candidate.memoryId) &&
-				candidate.confidence >= options.minConfidence &&
-				isStatusEligible(candidate, {
-					includeProvisional: options.includeProvisional,
-					includeHistorical: request.includeHistorical ?? false,
-					requestedTiers: request.requestedTiers,
-				}),
-		);
+		const eligible = deduplicateCandidates(tierMatched).filter(candidate => {
+			if (excluded.has(candidate.memoryId)) return false;
+			if (candidate.confidence < options.minConfidence) return false;
+			return isStatusEligible(candidate, eligibility);
+		});
 
 		// 5. Fuse and rank, then apply the total cap.
 		const ranked = this.postProcess(eligible, request);
@@ -130,12 +132,10 @@ export class TieredRetrievalBroker {
 		let timer: ReturnType<typeof setTimeout> | undefined;
 
 		try {
-			const candidates = await Promise.race([
-				lane.retrieve(request, options),
-				new Promise<never>((_resolve, reject) => {
-					timer = setTimeout(() => reject(new Error(`Lane timeout: ${lane.id}`)), options.deadlineMs);
-				}),
-			]);
+			const deadline = new Promise<never>((_resolve, reject) => {
+				timer = setTimeout(() => reject(new Error(`Lane timeout: ${lane.id}`)), options.deadlineMs);
+			});
+			const candidates = await Promise.race([lane.retrieve(request, options), deadline]);
 
 			return {
 				laneId: lane.id,
@@ -223,7 +223,8 @@ export class TieredRetrievalBroker {
 		for (const list of rankedLists) {
 			for (const [index, candidate] of list.entries()) {
 				const rank = index + 1;
-				scores.set(candidate.memoryId, (scores.get(candidate.memoryId) ?? 0) + 1 / (k + rank));
+				const previous = scores.get(candidate.memoryId) ?? 0;
+				scores.set(candidate.memoryId, previous + 1 / (k + rank));
 			}
 		}
 
@@ -232,16 +233,16 @@ export class TieredRetrievalBroker {
 
 	/** Probe every registered lane in parallel. A throwing lane reports unhealthy. */
 	async healthCheck(): Promise<Partial<Record<MemoryLane, LaneHealth>>> {
-		const entries = await Promise.all(
-			[...this.adapters].map(async ([laneId, adapter]): Promise<[MemoryLane, LaneHealth]> => {
-				try {
-					return [laneId, await adapter.healthCheck()];
-				} catch {
-					return [laneId, { healthy: false, latencyMs: -1 }];
-				}
-			}),
-		);
+		const lanes = [...this.adapters.entries()];
+		const probes = lanes.map(async ([laneId, adapter]): Promise<[MemoryLane, LaneHealth]> => {
+			try {
+				return [laneId, await adapter.healthCheck()];
+			} catch {
+				return [laneId, { healthy: false, latencyMs: -1 }];
+			}
+		});
 
+		const entries = await Promise.all(probes);
 		return Object.fromEntries(entries) as Partial<Record<MemoryLane, LaneHealth>>;
 	}
 }
@@ -258,11 +259,13 @@ export function selectTierAware(
 	candidates: RetrievedMemoryCandidate[],
 	requestedTiers: ContextTier[],
 ): RetrievedMemoryCandidate[] {
-	const core = candidates.filter(candidate => candidate.tier === "L0" || candidate.tier === "L1");
-	const requested = candidates.filter(
-		candidate =>
-			candidate.tier !== "L0" && candidate.tier !== "L1" && requestedTiers.includes(candidate.tier),
-	);
+	const core: RetrievedMemoryCandidate[] = [];
+	const requested: RetrievedMemoryCandidate[] = [];
+
+	for (const candidate of candidates) {
+		if (candidate.tier === "L0" || candidate.tier === "L1") core.push(candidate);
+		else if (requestedTiers.includes(candidate.tier)) requested.push(candidate);
+	}
 
 	return [...core, ...requested];
 }
