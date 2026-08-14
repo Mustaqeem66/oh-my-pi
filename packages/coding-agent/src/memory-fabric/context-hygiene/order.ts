@@ -174,7 +174,9 @@ export function planOrdering(items: ClassifiedContextItem[], options: OrderOptio
 
 		// rank-by-importance index for each original position.
 		const rankOf = new Map<number, number>();
-		ranked.forEach((s, rank) => rankOf.set(s.originalIndex, rank));
+		ranked.forEach((s, rank) => {
+			rankOf.set(s.originalIndex, rank);
+		});
 
 		const n = laidOut.length;
 		let moved = 0;
