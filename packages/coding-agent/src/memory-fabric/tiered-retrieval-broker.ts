@@ -32,27 +32,27 @@ import type {
 import { DEFAULT_TIERED_RETRIEVAL_CONFIG } from "./tiered-retrieval-types";
 
 export class TieredRetrievalBroker {
-	private readonly adapters = new Map<MemoryLane, MemoryLaneAdapter>();
-	private readonly config: TieredRetrievalConfig;
+	readonly #adapters = new Map<MemoryLane, MemoryLaneAdapter>();
+	readonly #config: TieredRetrievalConfig;
 
 	constructor(config?: Partial<TieredRetrievalConfig>) {
-		this.config = { ...DEFAULT_TIERED_RETRIEVAL_CONFIG, ...config };
+		this.#config = { ...DEFAULT_TIERED_RETRIEVAL_CONFIG, ...config };
 	}
 
 	registerAdapter(adapter: MemoryLaneAdapter): void {
-		this.adapters.set(adapter.id, adapter);
+		this.#adapters.set(adapter.id, adapter);
 	}
 
 	unregisterAdapter(laneId: MemoryLane): void {
-		this.adapters.delete(laneId);
+		this.#adapters.delete(laneId);
 	}
 
 	getAdapter(laneId: MemoryLane): MemoryLaneAdapter | undefined {
-		return this.adapters.get(laneId);
+		return this.#adapters.get(laneId);
 	}
 
 	getRegisteredLanes(): MemoryLane[] {
-		return [...this.adapters.keys()];
+		return [...this.#adapters.keys()];
 	}
 
 	/** Main retrieval entry point. */
@@ -62,12 +62,12 @@ export class TieredRetrievalBroker {
 		// 1. Deterministic lane selection, narrowed to lanes we can actually query.
 		const lanes: MemoryLaneAdapter[] = [];
 		for (const laneId of selectMemoryLanes(request)) {
-			const adapter = this.adapters.get(laneId);
+			const adapter = this.#adapters.get(laneId);
 			if (adapter) lanes.push(adapter);
 		}
 
 		// 2. Query every lane in parallel.
-		const laneResults = await Promise.all(lanes.map(lane => this.queryLane(lane, request, options)));
+		const laneResults = await Promise.all(lanes.map(lane => this.#queryLane(lane, request, options)));
 
 		// 3. Collect. `lanesQueried` records what was asked, not what answered, so
 		//    a lane that returned nothing is still distinguishable from one that
@@ -99,7 +99,7 @@ export class TieredRetrievalBroker {
 
 		// 5. Fuse and rank, then apply the total cap.
 		const ranked = this.postProcess(eligible, request);
-		const limit = request.maximumTotalCandidates ?? this.config.maximumTotalCandidates;
+		const limit = request.maximumTotalCandidates ?? this.#config.maximumTotalCandidates;
 		const finalCandidates = ranked.slice(0, limit);
 
 		return {
@@ -123,18 +123,17 @@ export class TieredRetrievalBroker {
 	 * loop alive for the remainder of the deadline after the answer is already
 	 * known, which turns every fast lane into a `deadlineMs` stall.
 	 */
-	private async queryLane(
+	async #queryLane(
 		lane: MemoryLaneAdapter,
 		request: TieredRetrievalRequest,
 		options: TieredRetrievalOptions,
 	): Promise<LaneRetrievalResult> {
 		const laneStart = Date.now();
-		let timer: ReturnType<typeof setTimeout> | undefined;
+		let timer: Timer | undefined;
 
 		try {
-			const deadline = new Promise<never>((_resolve, reject) => {
-				timer = setTimeout(() => reject(new Error(`Lane timeout: ${lane.id}`)), options.deadlineMs);
-			});
+			const { promise: deadline, reject } = Promise.withResolvers<never>();
+			timer = setTimeout(() => reject(new Error(`Lane timeout: ${lane.id}`)), options.deadlineMs);
 			const candidates = await Promise.race([lane.retrieve(request, options), deadline]);
 
 			return {
@@ -164,7 +163,7 @@ export class TieredRetrievalBroker {
 	postProcess(candidates: RetrievedMemoryCandidate[], request: TieredRetrievalRequest): RetrievedMemoryCandidate[] {
 		if (candidates.length === 0) return [];
 
-		const fused = this.reciprocalRankFusion(this.groupByLane(candidates), this.config.rrfK);
+		const fused = this.reciprocalRankFusion(this.#groupByLane(candidates), this.#config.rrfK);
 
 		const scored = candidates.map(candidate => {
 			const scopeScore = calculateScopeScore(candidate, request.scope);
@@ -196,7 +195,7 @@ export class TieredRetrievalBroker {
 	}
 
 	/** Group candidates into one ranked list per lane. */
-	private groupByLane(candidates: RetrievedMemoryCandidate[]): RetrievedMemoryCandidate[][] {
+	#groupByLane(candidates: RetrievedMemoryCandidate[]): RetrievedMemoryCandidate[][] {
 		const byLane = new Map<MemoryLane, RetrievedMemoryCandidate[]>();
 
 		for (const candidate of candidates) {
@@ -233,7 +232,7 @@ export class TieredRetrievalBroker {
 
 	/** Probe every registered lane in parallel. A throwing lane reports unhealthy. */
 	async healthCheck(): Promise<Partial<Record<MemoryLane, LaneHealth>>> {
-		const lanes = [...this.adapters.entries()];
+		const lanes = [...this.#adapters.entries()];
 		const probes = lanes.map(async ([laneId, adapter]): Promise<[MemoryLane, LaneHealth]> => {
 			try {
 				return [laneId, await adapter.healthCheck()];
