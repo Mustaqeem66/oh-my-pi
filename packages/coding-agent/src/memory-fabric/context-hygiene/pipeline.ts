@@ -40,10 +40,8 @@
  * memory-fabric/index.ts. Non-mutating on the caller's input.
  */
 
+import type { TokenCounter, TokenTelemetryEvent, TokenTelemetrySink } from "../token-accounting/token-accounting";
 import {
-	type TokenCounter,
-	type TokenTelemetryEvent,
-	type TokenTelemetrySink,
 	accountTokens,
 	countTokens,
 	emitTokenTelemetry,
