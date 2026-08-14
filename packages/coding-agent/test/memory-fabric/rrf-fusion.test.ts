@@ -126,7 +126,7 @@ describe("lane configuration", () => {
 		expect(Object.keys(DEFAULT_RRF_CONFIG.laneWeights).sort()).toEqual([
 			"canonical",
 			"graphify",
-			"membvid-placeholder".replace("membvid-placeholder", "mempalace"),
+			"mempalace",
 			"memvid-lexical",
 			"memvid-temporal",
 		]);
@@ -190,11 +190,11 @@ describe("applyQualityAdjustment", () => {
 
 	it("caps the cross-lane agreement boost at 1.15", () => {
 		const manyLanes = applyQualityAdjustment(fused("x", { appearedInLanes: 50 }));
-		const fiveLanes = applyQualityAdjustment(fused("x", { appearedInLanes: 5 }));
+		const fourLanes = applyQualityAdjustment(fused("x", { appearedInLanes: 4 }));
 
-		// tool-observed (1.05) * capped agreement boost (1.15), all other factors 1.
+		// tool-observed (1.05) * agreement boost; every other factor resolves to 1.
 		expect(manyLanes.finalScore).toBeCloseTo(0.01 * 1.05 * 1.15, 12);
-		expect(fiveLanes.finalScore).toBeCloseTo(0.01 * 1.05 * 1.16, 12);
+		expect(fourLanes.finalScore).toBeCloseTo(0.01 * 1.05 * 1.12, 12);
 	});
 
 	it("clamps out-of-range signals instead of amplifying them", () => {
