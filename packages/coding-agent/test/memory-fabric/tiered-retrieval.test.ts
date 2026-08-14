@@ -32,9 +32,18 @@ import {
 	RETRIEVAL_LANE_TO_STORAGE_LANE,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/tiered-retrieval-types";
 
+/**
+ * Build a candidate.
+ *
+ * The default `contentHash` is derived from `memoryId` rather than being a
+ * shared constant: `deduplicateCandidates` collapses identical hashes, so a
+ * shared default silently annihilated every multi-candidate fixture that did
+ * not think to override it. Tests that *want* a collision now have to say so.
+ */
 function candidate(overrides: Partial<RetrievedMemoryCandidate> = {}): RetrievedMemoryCandidate {
+	const memoryId = overrides.memoryId ?? "m1";
 	return {
-		memoryId: "m1",
+		memoryId,
 		lane: "canonical",
 		tier: "L1",
 		type: "fact",
@@ -48,7 +57,7 @@ function candidate(overrides: Partial<RetrievedMemoryCandidate> = {}): Retrieved
 		status: "active",
 		verification: "user-confirmed",
 		sourceReferences: [],
-		contentHash: "h1",
+		contentHash: `hash:${memoryId}`,
 		tokenEstimate: 10,
 		...overrides,
 	};
@@ -234,15 +243,15 @@ describe("deduplication", () => {
 		// Regression: an earlier revision dropped any candidate sharing a single
 		// source reference with an earlier one, annihilating distinct memories
 		// about the same file.
-		const first = candidate({ memoryId: "a", contentHash: "h1", sourceReferences: ["file:src/a.ts"] });
-		const second = candidate({ memoryId: "b", contentHash: "h2", sourceReferences: ["file:src/a.ts"] });
+		const first = candidate({ memoryId: "a", sourceReferences: ["file:src/a.ts"] });
+		const second = candidate({ memoryId: "b", sourceReferences: ["file:src/a.ts"] });
 		const kept = deduplicateCandidates([first, second]);
 		expect(kept.map(item => item.memoryId)).toEqual(["a", "b"]);
 	});
 
 	it("drops a record superseded by one that was kept", () => {
-		const replacement = candidate({ memoryId: "new", contentHash: "h2" });
-		const old = candidate({ memoryId: "old", contentHash: "h1", supersededBy: "new" });
+		const replacement = candidate({ memoryId: "new" });
+		const old = candidate({ memoryId: "old", supersededBy: "new" });
 		const kept = deduplicateCandidates([replacement, old]);
 		expect(kept.map(item => item.memoryId)).toEqual(["new"]);
 	});
@@ -446,7 +455,7 @@ describe("post-processing", () => {
 
 	it("ranks stronger provenance above weaker provenance", () => {
 		const strong = candidate({ memoryId: "strong", verification: "user-confirmed" });
-		const weak = candidate({ memoryId: "weak", verification: "episode-derived", contentHash: "h2" });
+		const weak = candidate({ memoryId: "weak", verification: "episode-derived" });
 		const ranked = broker.postProcess([weak, strong], request());
 		expect(ranked[0]?.memoryId).toBe("strong");
 	});
@@ -468,8 +477,9 @@ describe("broker registration", () => {
 describe("broker retrieval", () => {
 	it("fans out across registered lanes and fuses the results", async () => {
 		const broker = new TieredRetrievalBroker();
+		const local = candidate({ memoryId: "b", lane: "working-state" });
 		broker.registerAdapter(adapter("canonical", [candidate({ memoryId: "a" })]));
-		broker.registerAdapter(adapter("working-state", [candidate({ memoryId: "b", lane: "working-state" })]));
+		broker.registerAdapter(adapter("working-state", [local]));
 
 		const result = await broker.retrieve(request({ requestedTiers: ["L0", "L1"] }), options());
 		expect(result.candidates.map(item => item.memoryId).sort()).toEqual(["a", "b"]);
@@ -530,7 +540,7 @@ describe("broker retrieval", () => {
 
 	it("honours the excluded memory list", async () => {
 		const broker = new TieredRetrievalBroker();
-		const items = [candidate({ memoryId: "a" }), candidate({ memoryId: "b", contentHash: "h2" })];
+		const items = [candidate({ memoryId: "a" }), candidate({ memoryId: "b" })];
 		broker.registerAdapter(adapter("canonical", items));
 
 		const result = await broker.retrieve(request({ excludeMemoryIds: ["a"] }), options());
@@ -547,7 +557,7 @@ describe("broker retrieval", () => {
 
 	it("filters out tiers that were not requested", async () => {
 		const broker = new TieredRetrievalBroker();
-		const items = [candidate({ memoryId: "a" }), candidate({ memoryId: "deep", tier: "L4", contentHash: "h2" })];
+		const items = [candidate({ memoryId: "a" }), candidate({ memoryId: "deep", tier: "L4" })];
 		broker.registerAdapter(adapter("canonical", items));
 
 		const result = await broker.retrieve(request({ requestedTiers: ["L1"] }), options());
@@ -556,11 +566,7 @@ describe("broker retrieval", () => {
 
 	it("applies the per-request total cap", async () => {
 		const broker = new TieredRetrievalBroker();
-		const items = [
-			candidate({ memoryId: "a", contentHash: "h1" }),
-			candidate({ memoryId: "b", contentHash: "h2" }),
-			candidate({ memoryId: "c", contentHash: "h3" }),
-		];
+		const items = [candidate({ memoryId: "a" }), candidate({ memoryId: "b" }), candidate({ memoryId: "c" })];
 		broker.registerAdapter(adapter("canonical", items));
 
 		const result = await broker.retrieve(request({ maximumTotalCandidates: 2 }), options());
@@ -569,8 +575,9 @@ describe("broker retrieval", () => {
 
 	it("counts results by lane and by tier", async () => {
 		const broker = new TieredRetrievalBroker();
+		const local = candidate({ memoryId: "b", lane: "working-state" });
 		broker.registerAdapter(adapter("canonical", [candidate({ memoryId: "a" })]));
-		broker.registerAdapter(adapter("working-state", [candidate({ memoryId: "b", lane: "working-state" })]));
+		broker.registerAdapter(adapter("working-state", [local]));
 
 		const result = await broker.retrieve(request({ requestedTiers: ["L0", "L1"] }), options());
 		expect(result.stats.byLane.canonical).toBe(1);
