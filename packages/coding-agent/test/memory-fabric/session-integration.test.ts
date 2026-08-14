@@ -11,9 +11,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import {
-	CompositeSessionParticipant,
-} from "@oh-my-pi/pi-coding-agent/memory-fabric/session-integration/composite-participant";
+import { CompositeSessionParticipant } from "@oh-my-pi/pi-coding-agent/memory-fabric/session-integration/composite-participant";
 import {
 	appendMemoryContext,
 	formatMemoryContext,
@@ -23,9 +21,7 @@ import {
 	withDeadline,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/session-integration/deadline";
 import { InProcessSessionEventBus } from "@oh-my-pi/pi-coding-agent/memory-fabric/session-integration/event-bus";
-import {
-	NoopSessionMemoryParticipant,
-} from "@oh-my-pi/pi-coding-agent/memory-fabric/session-integration/noop-participant";
+import { NoopSessionMemoryParticipant } from "@oh-my-pi/pi-coding-agent/memory-fabric/session-integration/noop-participant";
 import type {
 	MemoryContextPacket,
 	MemoryEventOrigin,
