@@ -40,13 +40,15 @@
  * memory-fabric/index.ts. Non-mutating on the caller's input.
  */
 
-import type { TokenCounter, TokenTelemetryEvent, TokenTelemetrySink } from "../token-accounting/token-accounting";
 import {
 	accountTokens,
 	countTokens,
 	emitTokenTelemetry,
 	heuristicTokenCounter,
 	noopTelemetrySink,
+	type TokenCounter,
+	type TokenTelemetryEvent,
+	type TokenTelemetrySink,
 } from "../token-accounting/token-accounting";
 import { classifyItems } from "./classify";
 import {
@@ -175,7 +177,7 @@ export function runContextHygieneGate(
 		const afterPreReject: ContextItem[] = [];
 		const preReject = options.preReject;
 		for (const item of items) {
-			if (preReject && preReject(item)) {
+			if (preReject?.(item)) {
 				preRejected.push({ id: item.id, stage: "pre-reject", reason: "pre-reject hook" });
 			} else {
 				afterPreReject.push(item);

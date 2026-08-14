@@ -299,7 +299,7 @@ export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
 
 /** Resolve a model's context window, falling back to `default`. Never throws. */
 export function budgetForModel(model?: string): number {
-	if (model && Object.prototype.hasOwnProperty.call(MODEL_CONTEXT_WINDOWS, model)) {
+	if (model && Object.hasOwn(MODEL_CONTEXT_WINDOWS, model)) {
 		return MODEL_CONTEXT_WINDOWS[model];
 	}
 	return MODEL_CONTEXT_WINDOWS.default;
