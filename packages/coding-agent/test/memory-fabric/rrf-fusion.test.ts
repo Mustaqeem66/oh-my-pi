@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import type { FusedMemoryItem, RankedMemoryItem } from "@oh-my-pi/pi-coding-agent/memory-fabric/rrf-fusion";
 import {
 	applyQualityAdjustment,
 	calculateRedundancyPenalty,
@@ -14,7 +15,6 @@ import {
 	itemSatisfiesNeed,
 	selectWithCoverage,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/rrf-fusion";
-import type { FusedMemoryItem, RankedMemoryItem } from "@oh-my-pi/pi-coding-agent/memory-fabric/rrf-fusion";
 
 const K = DEFAULT_RRF_CONFIG.rankConstant;
 
@@ -290,7 +290,9 @@ describe("redundancy and needs", () => {
 	it("matches an explicit satisfiedBy list ahead of text matching", () => {
 		const item = fused("a", { candidate: record("a", { type: "fact" }) });
 
-		expect(itemSatisfiesNeed(item, { type: "fact", required: true, priority: 1, satisfiedBy: ["other"] })).toBe(false);
+		expect(itemSatisfiesNeed(item, { type: "fact", required: true, priority: 1, satisfiedBy: ["other"] })).toBe(
+			false,
+		);
 		expect(itemSatisfiesNeed(item, { type: "fact", required: true, priority: 1, satisfiedBy: ["a"] })).toBe(true);
 	});
 });
