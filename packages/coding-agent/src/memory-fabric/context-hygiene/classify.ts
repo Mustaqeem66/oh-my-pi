@@ -19,10 +19,10 @@
 
 import {
 	ALLOWED_TRANSFORMS,
-	type ClassificationRule,
-	type ClassifiedContextItem,
 	CLASSIFIER_NAME,
 	CLASSIFIER_VERSION,
+	type ClassificationRule,
+	type ClassifiedContextItem,
 	type ClassifyOptions,
 	type ContextItem,
 	type FidelityClass,
