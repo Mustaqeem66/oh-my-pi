@@ -1247,6 +1247,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 			const errors: string[] = [];
 			const unsubscribe = runner.onError(error => {
 				errors.push(error.error);
+				testSetExtensionHandlerTimeoutMs(EXTENSION_HANDLER_TIMEOUT_MS);
 			});
 			testSetExtensionHandlerTimeoutMs(10);
 
@@ -1454,6 +1455,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 
 			releaseStalledRegistration.resolve();
 			const failure = await detachedFailure.promise;
+			testSetExtensionHandlerTimeoutMs(EXTENSION_HANDLER_TIMEOUT_MS);
 			releaseRecoveredRegistration.resolve();
 			await recoveredActivation.promise;
 
