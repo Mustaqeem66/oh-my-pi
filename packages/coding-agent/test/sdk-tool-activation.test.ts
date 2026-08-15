@@ -2221,4 +2221,3 @@ describe("createAgentSession defaultInactive tool activation", () => {
 		});
 	});
 });
-
