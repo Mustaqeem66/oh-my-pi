@@ -93,9 +93,7 @@ describe("assessMinimality", () => {
 	});
 
 	it("caps retained matches at maxMatches", () => {
-		const catalog = catalogFromCapabilities(
-			["a", "b", "c"].map(id => capability({ id, keywords: ["retry"] })),
-		);
+		const catalog = catalogFromCapabilities(["a", "b", "c"].map(id => capability({ id, keywords: ["retry"] })));
 		const result = assessMinimality(intent(), { catalog, maxMatches: 2, now: NOW });
 		expect(result.matches).toHaveLength(2);
 	});

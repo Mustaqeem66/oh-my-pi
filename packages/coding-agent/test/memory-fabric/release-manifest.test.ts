@@ -24,9 +24,13 @@ describe("release-manifest", () => {
 		it("mirrors the live default configurations", () => {
 			expect(CONTROL_LOOP_BASELINE.rrfRankConstant).toBe(DEFAULT_RRF_CONFIG.rankConstant);
 			expect(CONTROL_LOOP_BASELINE.laneWeights).toEqual({ ...DEFAULT_RRF_CONFIG.laneWeights });
-			expect(CONTROL_LOOP_BASELINE.expansionThresholds.activeThreshold).toBe(DEFAULT_THRESHOLD_CONFIG.activeThreshold);
+			expect(CONTROL_LOOP_BASELINE.expansionThresholds.activeThreshold).toBe(
+				DEFAULT_THRESHOLD_CONFIG.activeThreshold,
+			);
 			expect(CONTROL_LOOP_BASELINE.adaptiveBudgets.recovery).toBe(DEFAULT_ADAPTIVE_CONFIG.recoveryTokenBudget);
-			expect(CONTROL_LOOP_BASELINE.absoluteMemoryLimitTokens).toBe(DEFAULT_THRESHOLD_CONFIG.maximumTotalExpansionTokens);
+			expect(CONTROL_LOOP_BASELINE.absoluteMemoryLimitTokens).toBe(
+				DEFAULT_THRESHOLD_CONFIG.maximumTotalExpansionTokens,
+			);
 			expect(CONTROL_LOOP_BASELINE.maximumExpansionStepsPerTurn).toBe(DEFAULT_THRESHOLD_CONFIG.maximumStepsPerTurn);
 		});
 
@@ -60,7 +64,12 @@ describe("release-manifest", () => {
 				commitSha: "abcdef1",
 				timestamp: "2026-08-18T00:00:00Z",
 				rollbackTarget: "v1.0",
-				testVerificationSummary: { totalTestsPassed: 12, totalTestsFailed: 0, totalAssertions: 40, testSuiteCount: 2 },
+				testVerificationSummary: {
+					totalTestsPassed: 12,
+					totalTestsFailed: 0,
+					totalAssertions: 40,
+					testSuiteCount: 2,
+				},
 			});
 			expect(built.rollbackTarget).toBe("v1.0");
 			expect(built.testVerificationSummary?.totalAssertions).toBe(40);
