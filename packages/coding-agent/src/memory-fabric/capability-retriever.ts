@@ -287,9 +287,7 @@ export function retrieveCapabilities(
 		let decisions: DecisionLike[] = [];
 		const conflictFlags: RetrievalFlag[] = [];
 		if (typeof resolveConflicts === "function") {
-			const descriptors = (req.descriptors ?? []).filter(
-				d => d && isNonEmptyString(d.id) && includedSet.has(d.id),
-			);
+			const descriptors = (req.descriptors ?? []).filter(d => d && isNonEmptyString(d.id) && includedSet.has(d.id));
 			const conf = safeRun(() => resolveConflicts(descriptors, edges), {} as ConflictLike);
 			if (conf.ran) stages.push("resolve-conflicts");
 			const cr = conf.value ?? {};
