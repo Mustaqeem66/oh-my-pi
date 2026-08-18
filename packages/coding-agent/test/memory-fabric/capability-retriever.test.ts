@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 
 import {
 	type CapabilityRetrieval,
-	retrieveCapabilities,
 	type RetrieverPorts,
+	retrieveCapabilities,
 	summarizeRetrieval,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/capability-retriever";
 
