@@ -10,8 +10,7 @@
  * supports (or, as a fallback, from the injected records themselves).
  */
 
-import type { ContextTier } from "./rrf-fusion";
-import type { MemoryVerificationLevel } from "./tiered-retrieval-types";
+import type { ContextTier, MemoryVerificationLevel } from "./rrf-fusion";
 
 export type ContextNeedType =
 	| "objective"
