@@ -157,10 +157,9 @@ describe("selectBestConfiguration", () => {
 	});
 
 	it("honors custom thresholds", () => {
-		const chosen = selectBestConfiguration(
-			[benchmark({ budgetTokens: 2000, p95LatencyMs: 5000 })],
-			{ maxLatencyMs: 4000 },
-		);
+		const chosen = selectBestConfiguration([benchmark({ budgetTokens: 2000, p95LatencyMs: 5000 })], {
+			maxLatencyMs: 4000,
+		});
 		expect(chosen).toBeNull();
 	});
 });
