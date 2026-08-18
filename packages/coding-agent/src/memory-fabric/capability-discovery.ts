@@ -565,9 +565,7 @@ export interface ExtensionDescriptor {
 }
 
 /** Normalize injected extension descriptors into capability descriptors. */
-export function discoverExtensionCapabilities(
-	extensions: ReadonlyArray<ExtensionDescriptor>,
-): DiscoveryBatchResult {
+export function discoverExtensionCapabilities(extensions: ReadonlyArray<ExtensionDescriptor>): DiscoveryBatchResult {
 	const nodes: CapabilityDescriptor[] = [];
 	const edges: DiscoveredEdge[] = [];
 	const diagnostics: DiscoveryDiagnostic[] = [];
