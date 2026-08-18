@@ -3,12 +3,12 @@ import { describe, expect, it } from "bun:test";
 import {
 	CanonicalLaneAdapter,
 	type CanonicalRecordLike,
+	fnv1a32,
 	GraphifyLaneAdapter,
+	inferCanonicalTier,
 	MemPalaceLaneAdapter,
 	MemvidLaneAdapter,
 	WorkingStateLaneAdapter,
-	fnv1a32,
-	inferCanonicalTier,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/lane-adapters";
 import type {
 	TieredRetrievalOptions,
@@ -85,10 +85,7 @@ describe("lane-adapters", () => {
 
 	it("filters provisional canonical records unless included", async () => {
 		const store = {
-			getRecordsByScope: () => [
-				record({ id: "a" }),
-				record({ id: "b", verification: "model-proposed" as const }),
-			],
+			getRecordsByScope: () => [record({ id: "a" }), record({ id: "b", verification: "model-proposed" as const })],
 		};
 		const adapter = new CanonicalLaneAdapter(store);
 		const excluded = await adapter.retrieve(request(), options());
