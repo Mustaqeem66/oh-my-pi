@@ -31,8 +31,8 @@ import {
 	type ObservationReport,
 	type ObservationResult,
 	type ObservationSink,
-	observeContextHygiene,
 	type ObserveOptions,
+	observeContextHygiene,
 } from "../rollout/observe";
 import { OBSERVE_STAGE, type RolloutStage } from "../rollout/types";
 import type { BeforeModelEvent, MemoryContextPacket, SessionMemoryParticipant } from "./types";
