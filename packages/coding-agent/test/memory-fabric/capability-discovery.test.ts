@@ -112,10 +112,7 @@ describe("capability-discovery: MCP + extensions", () => {
 	const server: McpServerManifest = {
 		serverId: "srv",
 		serverName: "Server",
-		tools: [
-			{ name: "read", description: "reads", readOnly: true },
-			{ name: "write" },
-		],
+		tools: [{ name: "read", description: "reads", readOnly: true }, { name: "write" }],
 	};
 
 	it("normalizes MCP tools into descriptors with conservative approval", () => {
