@@ -57,11 +57,7 @@ describe("capability-cycle-analysis", () => {
 	});
 
 	it("ignores self-loops, malformed edges and unknown kinds", () => {
-		const edges = [
-			edge("a", "a"),
-			{ from: "", to: "b", kind: "requires" },
-			edge("a", "b", "totally-unknown-kind"),
-		];
+		const edges = [edge("a", "a"), { from: "", to: "b", kind: "requires" }, edge("a", "b", "totally-unknown-kind")];
 		const result = analyzeCapabilityCycles(edges, { enabled: true });
 		expect(result.acyclic).toBe(true);
 		expect(result.cycles).toEqual([]);
