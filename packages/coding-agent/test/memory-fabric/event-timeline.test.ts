@@ -79,13 +79,7 @@ describe("projectEventTimeline", () => {
 			},
 		];
 		const timeline = projectEventTimeline(events);
-		expect(timeline.rows.map(r => r.category)).toEqual([
-			"memory",
-			"memory",
-			"memory",
-			"checkpoint",
-			"maintenance",
-		]);
+		expect(timeline.rows.map(r => r.category)).toEqual(["memory", "memory", "memory", "checkpoint", "maintenance"]);
 		expect(timeline.rows[0]?.summary).toMatch(/^wrote fact /);
 		expect(timeline.rows[1]?.summary).toMatch(/^updated fact /);
 		expect(timeline.rows[2]?.summary).toBe("deleted mem-x");
