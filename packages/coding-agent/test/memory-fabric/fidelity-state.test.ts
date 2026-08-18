@@ -9,8 +9,8 @@
 
 import { describe, expect, it } from "bun:test";
 import {
-	type FidelityInputItem,
 	currentFidelityState,
+	type FidelityInputItem,
 	planAdaptiveFidelityState,
 	summarizeFidelityState,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/adaptive-fidelity/fidelity-state";
