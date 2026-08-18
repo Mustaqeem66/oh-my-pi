@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { SessionEventBus } from "@oh-my-pi/pi-coding-agent/memory-fabric/guardian/event-bus";
 import type { GuardianPendingInjection } from "@oh-my-pi/pi-coding-agent/memory-fabric/guardian/integration";
-import { NoopSessionMemoryParticipant } from "@oh-my-pi/pi-coding-agent/memory-fabric/session-integration";
 import {
 	type CreateParticipantOptions,
 	createSessionMemoryParticipant,
@@ -11,6 +10,15 @@ import {
 	GuardianSessionParticipant,
 	type GuardianSessionParticipantOptions,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/session-integration/guardian-participant";
+import type { SessionMemoryParticipant } from "@oh-my-pi/pi-coding-agent/memory-fabric/session-integration/types";
+
+/**
+ * `SessionMemoryParticipant` is an empty marker interface, so the only thing a
+ * caller can tell participants apart by is the name they publish.
+ */
+function nameOf(participant: SessionMemoryParticipant): string | undefined {
+	return (participant as { participantName?: string }).participantName;
+}
 
 const injections: GuardianInjectionSource = {
 	whenIdle: async () => {},
@@ -37,11 +45,11 @@ function explodingOptions(): GuardianSessionParticipantOptions {
 
 describe("createSessionMemoryParticipant", () => {
 	it("returns the no-op when given nothing at all", () => {
-		expect(createSessionMemoryParticipant()).toBeInstanceOf(NoopSessionMemoryParticipant);
+		expect(nameOf(createSessionMemoryParticipant())).toBe("noop");
 	});
 
 	it("prefers an explicitly supplied participant over every other rung", () => {
-		const supplied = new NoopSessionMemoryParticipant();
+		const supplied = { participantName: "supplied" };
 		const options: CreateParticipantOptions = {
 			testParticipant: supplied,
 			disabled: true,
@@ -54,11 +62,11 @@ describe("createSessionMemoryParticipant", () => {
 	it("returns the no-op when memory is switched off, even with a guardian configured", () => {
 		const participant = createSessionMemoryParticipant({ disabled: true, guardian: guardianOptions() });
 
-		expect(participant).toBeInstanceOf(NoopSessionMemoryParticipant);
+		expect(nameOf(participant)).toBe("noop");
 	});
 
 	it("treats absent guardian configuration as off rather than as an error", () => {
-		expect(createSessionMemoryParticipant({})).toBeInstanceOf(NoopSessionMemoryParticipant);
+		expect(nameOf(createSessionMemoryParticipant({}))).toBe("noop");
 	});
 
 	it("builds the guardian participant when there is something to build it from", () => {
@@ -75,7 +83,7 @@ describe("createSessionMemoryParticipant", () => {
 			onError: error => errors.push(error),
 		});
 
-		expect(participant).toBeInstanceOf(NoopSessionMemoryParticipant);
+		expect(nameOf(participant)).toBe("noop");
 		expect(errors).toHaveLength(1);
 		expect((errors[0] as Error).message).toBe("boom");
 	});
