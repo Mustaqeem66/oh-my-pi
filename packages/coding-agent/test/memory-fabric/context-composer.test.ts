@@ -9,8 +9,8 @@ import {
 	estimateRecordTokens,
 	formatContextForModel,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/context-composer";
-import { createMemoryRecord } from "@oh-my-pi/pi-coding-agent/memory-fabric/types";
 import type { CreateMemoryRecordInput, MemoryRecord } from "@oh-my-pi/pi-coding-agent/memory-fabric/types";
+import { createMemoryRecord } from "@oh-my-pi/pi-coding-agent/memory-fabric/types";
 
 function record(overrides?: Partial<CreateMemoryRecordInput>): MemoryRecord {
 	return createMemoryRecord({
