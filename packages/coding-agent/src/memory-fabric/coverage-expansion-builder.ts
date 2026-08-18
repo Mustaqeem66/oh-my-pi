@@ -5,11 +5,11 @@
  * builds unified control loop diagnostics for logging & guardian explain.
  */
 
+import type { ContextExpansionRequest } from "./adaptive-fidelity/types";
 import type { ContextCoverageReport } from "./contextual-coverage";
 import type { ExpansionDecisionResult } from "./expansion-thresholds";
 import type { FusedMemoryItem } from "./rrf-fusion";
 import { formatRRFExplanation } from "./rrf-fusion";
-import type { ContextExpansionRequest } from "./tiered-retrieval-types";
 
 /**
  * Calculate expansion token budget based on coverage deficit.
