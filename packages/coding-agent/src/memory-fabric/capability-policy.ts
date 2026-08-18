@@ -58,8 +58,8 @@ export interface PolicyEvaluationResult {
 
 function isPreAuthorized(id: string, ids: ApprovalPolicyOptions["preAuthorizedIds"]): boolean {
 	if (!ids) return false;
-	if (ids instanceof Set) return ids.has(id);
-	return ids.includes(id);
+	if (Array.isArray(ids)) return ids.includes(id);
+	return ids.has(id);
 }
 
 /**
