@@ -29,11 +29,10 @@
  * still does not install itself into a session — a call site must ask for it.
  */
 
-import type { GuardianConfig, GuardianMode } from "../guardian/decision-engine";
+import type { GuardianConfig, GuardianMemoryRecord, GuardianMode } from "../guardian/decision-engine";
 import { SessionEventBus as GuardianEventBus } from "../guardian/event-bus";
 import type {
 	GuardianComposedContext,
-	GuardianMemoryRecord,
 	GuardianReporter,
 	GuardianRetrievalPort,
 	GuardianRuntime,
