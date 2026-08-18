@@ -63,10 +63,9 @@ describe("fuseCapabilitySeeds", () => {
 	});
 
 	it("aggregates needIds from annotated lists", () => {
-		const result = fuseCapabilitySeeds(
-			[list("lexical", ["a"], "need-1"), list("semantic", ["a"], "need-2")],
-			{ enabled: true },
-		);
+		const result = fuseCapabilitySeeds([list("lexical", ["a"], "need-1"), list("semantic", ["a"], "need-2")], {
+			enabled: true,
+		});
 		expect(result.candidates[0]?.needIds.sort()).toEqual(["need-1", "need-2"]);
 		expect(result.candidates[0]?.matchedNeedIds).toEqual(result.candidates[0]?.needIds);
 	});
