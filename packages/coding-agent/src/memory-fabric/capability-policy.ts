@@ -58,8 +58,13 @@ export interface PolicyEvaluationResult {
 
 function isPreAuthorized(id: string, ids: ApprovalPolicyOptions["preAuthorizedIds"]): boolean {
 	if (!ids) return false;
-	if (Array.isArray(ids)) return ids.includes(id);
-	return ids.has(id);
+	// Both ReadonlySet<string> and readonly string[] are Iterable<string>;
+	// iterating avoids union narrowing entirely (tsgo does not special-case
+	// Array.isArray against readonly arrays).
+	for (const authorized of ids) {
+		if (authorized === id) return true;
+	}
+	return false;
 }
 
 /**
