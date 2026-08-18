@@ -69,9 +69,10 @@ export class WorkingStateStore {
 
 	/** The current state for this scope, or a fresh empty state if none exists. */
 	getCurrent(): WorkingState {
-		const row = this.#db
-			.query("SELECT * FROM working_state WHERE state_key = ?")
-			.get(this.#stateKey) as Record<string, unknown> | null;
+		const row = this.#db.query("SELECT * FROM working_state WHERE state_key = ?").get(this.#stateKey) as Record<
+			string,
+			unknown
+		> | null;
 
 		if (!row) return createEmptyWorkingState();
 

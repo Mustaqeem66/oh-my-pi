@@ -111,9 +111,10 @@ export class EventJournal {
 
 	/** One positioned read: index row → byte range → parsed event. */
 	read(seq: number): JournalEvent | null {
-		const row = this.#db
-			.query("SELECT offset, length FROM event_index WHERE seq = ?")
-			.get(seq) as Record<string, unknown> | null;
+		const row = this.#db.query("SELECT offset, length FROM event_index WHERE seq = ?").get(seq) as Record<
+			string,
+			unknown
+		> | null;
 		if (!row || typeof row.offset !== "number" || typeof row.length !== "number") return null;
 		return this.#readAt(row.offset, row.length);
 	}
