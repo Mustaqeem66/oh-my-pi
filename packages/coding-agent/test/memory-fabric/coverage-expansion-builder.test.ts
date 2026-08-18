@@ -134,9 +134,7 @@ describe("formatCoverageExplanation", () => {
 	});
 
 	it("reports 'none' when nothing is satisfied and shows contradictions", () => {
-		const text = formatCoverageExplanation(
-			report({ satisfiedNeedIds: [], contradictedNeedIds: ["constraints"] }),
-		);
+		const text = formatCoverageExplanation(report({ satisfiedNeedIds: [], contradictedNeedIds: ["constraints"] }));
 		expect(text).toContain("Satisfied needs: none");
 		expect(text).toContain("Contradicted needs: constraints");
 	});
