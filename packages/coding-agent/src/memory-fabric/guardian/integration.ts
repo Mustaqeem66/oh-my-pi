@@ -137,11 +137,7 @@ const DEFAULT_MAX_INJECTION_TOKENS = 1200;
 const DEFAULT_MAX_RECORDS_PER_RETRIEVAL = 12;
 
 /** Actions that require records to be fetched. */
-const RETRIEVING_ACTIONS: ReadonlySet<GuardianAction> = new Set([
-	"RETRIEVE_SILENTLY",
-	"INJECT_CONTEXT",
-	"WARN_AGENT",
-]);
+const RETRIEVING_ACTIONS: ReadonlySet<GuardianAction> = new Set(["RETRIEVE_SILENTLY", "INJECT_CONTEXT", "WARN_AGENT"]);
 
 /** Actions whose records are staged for the next model call. */
 const INJECTING_ACTIONS: ReadonlySet<GuardianAction> = new Set(["INJECT_CONTEXT", "WARN_AGENT"]);
@@ -249,11 +245,14 @@ export class GuardianSessionIntegration {
 	 * it now would describe a state the session is no longer in.
 	 */
 	hookSessionLifecycle(eventBus: SessionEventBus): void {
+		// Both handlers are declared `async` because the bus calls `.catch()` on
+		// whatever a listener returns. Neither has anything to await; the keyword
+		// is there to satisfy the contract, not to signal asynchronous work.
 		this.#lifecycleUnsubscribes.push(
-			eventBus.on("session-stop", () => {
+			eventBus.on("session-stop", async () => {
 				this.stop();
 			}),
-			eventBus.on("resume", () => {
+			eventBus.on("resume", async () => {
 				this.#pending = null;
 			}),
 		);
@@ -300,11 +299,13 @@ export class GuardianSessionIntegration {
 	}
 
 	#enqueue(intervention: GuardianIntervention, event: SessionEvent): void {
-		this.#queue = this.#queue.then(() => this.#apply(intervention, event)).catch(error => {
-			// The chain must survive: one failed decision cannot be allowed to
-			// poison every decision after it.
-			this.#fail(intervention, error);
-		});
+		this.#queue = this.#queue
+			.then(() => this.#apply(intervention, event))
+			.catch(error => {
+				// The chain must survive: one failed decision cannot be allowed to
+				// poison every decision after it.
+				this.#fail(intervention, error);
+			});
 	}
 
 	async #apply(intervention: GuardianIntervention, event: SessionEvent): Promise<void> {
