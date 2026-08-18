@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { CapabilityDescriptor } from "@oh-my-pi/pi-coding-agent/memory-fabric/capability-orchestration";
 import { CapabilityGraph, createCapabilityGraph } from "@oh-my-pi/pi-coding-agent/memory-fabric/capability-graph";
+import type { CapabilityDescriptor } from "@oh-my-pi/pi-coding-agent/memory-fabric/capability-orchestration";
 
 function descriptor(id: string, metadata?: Record<string, unknown>): CapabilityDescriptor {
 	return {
