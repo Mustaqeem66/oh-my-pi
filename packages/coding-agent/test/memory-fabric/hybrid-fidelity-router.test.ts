@@ -55,7 +55,13 @@ describe("hybrid-fidelity-router", () => {
 	});
 
 	it("dedupes by id keeping the first occurrence", () => {
-		const result = routeFidelity([{ id: "a", local: true }, { id: "a", tier: "evicted" }], { enabled: true });
+		const result = routeFidelity(
+			[
+				{ id: "a", local: true },
+				{ id: "a", tier: "evicted" },
+			],
+			{ enabled: true },
+		);
 		expect(result.assignments).toHaveLength(1);
 		expect(result.assignments[0]?.lane).toBe("exact-local");
 	});
