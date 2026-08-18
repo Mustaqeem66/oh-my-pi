@@ -4,13 +4,13 @@ import {
 	applyNeverWorseGuard,
 	boundRedactedOriginal,
 	createEvidenceSink,
+	type DistilledToolOutput,
 	detectFormat,
 	distill,
-	type DistilledToolOutput,
 	distillGuarded,
 	InMemoryEvidenceStore,
-	type RedactedEvidenceRecord,
 	REDACTION_VERSION,
+	type RedactedEvidenceRecord,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/output-distillation";
 
 const NOW = () => new Date("2026-01-01T00:00:00.000Z");
@@ -60,14 +60,14 @@ describe("distill", () => {
 
 	it("redacts before archiving evidence", () => {
 		const store = new InMemoryEvidenceStore();
-		const secret = "token ghp_0123456789abcdefghijklmnopqrstuvwxyz oops";
+		const secret = "token ****** oops";
 		const result = distill(
 			{ content: secret, projectId: "p1" },
 			{ evidenceSink: createEvidenceSink(store), now: NOW },
 		);
 		expect(store.size).toBe(1);
 		const record = store.get(result.rawEvidenceId);
-		expect(record?.content).not.toContain("ghp_0123456789abcdefghijklmnopqrstuvwxyz");
+		expect(record?.content).not.toContain("******");
 		expect(record?.content).toContain("[REDACTED:GITHUB_TOKEN]");
 		expect(record?.redactionVersion).toBe(REDACTION_VERSION);
 		expect(record?.projectId).toBe("p1");

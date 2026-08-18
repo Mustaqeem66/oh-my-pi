@@ -182,7 +182,6 @@ const DEFAULT_MAX_LINES = 60;
 const PASSTHROUGH_HEAD = 40;
 const PASSTHROUGH_TAIL = 20;
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escapes start with ESC (0x1b) by definition.
 const ANSI_RE = /\x1b\[[0-9;?]*[A-Za-z]/g;
 const PROGRESS_RE = /^\s*(?:\d{1,3}%|\[=*>?\s*\]|[▏▎▍▌▋▊▉█\s]*\d+\/\d+)\s*$/;
 
@@ -346,7 +345,12 @@ function distillGeneric(lines: string[], maxLines: number): DistillerResult {
 		const head = cleaned.slice(0, PASSTHROUGH_HEAD);
 		const tail = cleaned.slice(-PASSTHROUGH_TAIL);
 		const signal = [...errors, ...warnings].slice(0, 20);
-		body = [...head, `… (${cleaned.length - PASSTHROUGH_HEAD - PASSTHROUGH_TAIL} lines elided) …`, ...signal, ...tail];
+		body = [
+			...head,
+			`… (${cleaned.length - PASSTHROUGH_HEAD - PASSTHROUGH_TAIL} lines elided) …`,
+			...signal,
+			...tail,
+		];
 	}
 	const summary = errors.length
 		? `${errors.length} error line(s), ${warnings.length} warning(s)`
