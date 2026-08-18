@@ -5,8 +5,8 @@ import type {
 	RedactorPort,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/event-gateway";
 import { EventGateway } from "@oh-my-pi/pi-coding-agent/memory-fabric/event-gateway";
-import { projectEventTimeline } from "@oh-my-pi/pi-coding-agent/memory-fabric/event-timeline";
 import type { MemoryLifecycleEvent } from "@oh-my-pi/pi-coding-agent/memory-fabric/event-timeline";
+import { projectEventTimeline } from "@oh-my-pi/pi-coding-agent/memory-fabric/event-timeline";
 import type { ScopingContext } from "@oh-my-pi/pi-coding-agent/memory-fabric/scoping";
 import type { SourceReference } from "@oh-my-pi/pi-coding-agent/memory-fabric/types";
 
