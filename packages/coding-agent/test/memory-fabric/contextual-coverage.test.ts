@@ -68,10 +68,7 @@ describe("calculateRequiredCoverage", () => {
 	});
 
 	it("ignores non-required needs", () => {
-		const needs = [
-			need({ id: "a", status: "satisfied" }),
-			need({ id: "b", required: false, status: "unresolved" }),
-		];
+		const needs = [need({ id: "a", status: "satisfied" }), need({ id: "b", required: false, status: "unresolved" })];
 		expect(calculateRequiredCoverage(needs)).toBe(1.0);
 	});
 });
