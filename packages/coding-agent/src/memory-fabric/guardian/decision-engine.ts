@@ -386,6 +386,9 @@ function isOutcomeEvidence(record: GuardianMemoryRecord): boolean {
 	return kind === "test-result" || kind === "build-result";
 }
 
+/** Notified for every decision the engine records. See {@link GuardianDecisionEngine.onDecision}. */
+export type GuardianDecisionListener = (intervention: GuardianIntervention, event: SessionEvent) => void;
+
 /**
  * Scores session events and records what it would have done about them.
  *
@@ -399,6 +402,7 @@ export class GuardianDecisionEngine {
 	readonly #eventBus: SessionEventBus;
 	readonly #interventions: GuardianIntervention[] = [];
 	readonly #unsubscribes: Array<() => void> = [];
+	readonly #decisionListeners = new Set<GuardianDecisionListener>();
 	#lastIntervention: GuardianIntervention | null = null;
 	#interventionCounter = 0;
 
@@ -431,6 +435,27 @@ export class GuardianDecisionEngine {
 	dispose(): void {
 		for (const unsubscribe of this.#unsubscribes) unsubscribe();
 		this.#unsubscribes.length = 0;
+		this.#decisionListeners.clear();
+	}
+
+	/**
+	 * Observe every decision as it is recorded.
+	 *
+	 * This is the seam an acting participant hangs off. The engine deliberately
+	 * does not retrieve or inject; a listener that wants to act reads the
+	 * intervention and does the work on its own clock, so a slow participant
+	 * can never stall the event that produced the decision.
+	 *
+	 * A listener that throws is reported and skipped, never rethrown into the
+	 * emitting event — a broken participant must not take the session with it.
+	 *
+	 * @returns an unsubscribe handle
+	 */
+	onDecision(listener: GuardianDecisionListener): () => void {
+		this.#decisionListeners.add(listener);
+		return () => {
+			this.#decisionListeners.delete(listener);
+		};
 	}
 
 	/**
@@ -727,6 +752,14 @@ export class GuardianDecisionEngine {
 		if (overflow > 0) this.#interventions.splice(0, overflow);
 
 		this.#lastIntervention = intervention;
+
+		for (const listener of this.#decisionListeners) {
+			try {
+				listener(intervention, event);
+			} catch (error) {
+				console.error("[guardian] decision listener failed", error);
+			}
+		}
 	}
 
 	getLastIntervention(): GuardianIntervention | null {
