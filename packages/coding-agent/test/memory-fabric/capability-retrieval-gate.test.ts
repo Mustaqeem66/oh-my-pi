@@ -124,12 +124,15 @@ describe("formatRetrievalReport", () => {
 	});
 
 	it("fails open to a short string on hostile input", () => {
-		const hostile = new Proxy({ enabled: true }, {
-			get(target, prop) {
-				if (prop === "enabled") return true;
-				throw new Error("hostile");
+		const hostile = new Proxy(
+			{ enabled: true },
+			{
+				get(_target, prop) {
+					if (prop === "enabled") return true;
+					throw new Error("hostile");
+				},
 			},
-		}) as RetrievalLike;
+		) as RetrievalLike;
 		expect(formatRetrievalReport(hostile)).toBe("Capability retrieval: report unavailable.");
 	});
 });
