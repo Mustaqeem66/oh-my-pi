@@ -181,9 +181,7 @@ export function inferSignalsFromBehavior(
 	);
 
 	// File touched: a source ref or the record content names a touched file.
-	const fileRefs = (record.sourceReferences ?? [])
-		.filter(r => r.startsWith("file:"))
-		.map(r => r.replace("file:", ""));
+	const fileRefs = (record.sourceReferences ?? []).filter(r => r.startsWith("file:")).map(r => r.replace("file:", ""));
 	const recommendedFileTouched = Boolean(
 		actions.filesTouched?.some(f => fileRefs.includes(f) || contentLower.includes(f.toLowerCase())),
 	);
@@ -209,9 +207,7 @@ export function inferSignalsFromBehavior(
 
 	const userCorrected = Boolean(actions.userCorrectionText && actions.userCorrectionText.length > 0);
 
-	const agentRejected = Boolean(
-		text.includes("incorrect") || text.includes("outdated") || text.includes("disregard"),
-	);
+	const agentRejected = Boolean(text.includes("incorrect") || text.includes("outdated") || text.includes("disregard"));
 
 	const causedExtraWork = Boolean(userCorrected && (actions.toolCalls?.length ?? 0) > 5);
 
