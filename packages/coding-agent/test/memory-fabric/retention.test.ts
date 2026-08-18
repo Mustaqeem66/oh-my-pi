@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import type { RetentionContext, RetentionSignals } from "@oh-my-pi/pi-coding-agent/memory-fabric/retention";
 import {
 	computeRetentionScore,
 	DEFAULT_RETENTION_POLICY,
@@ -10,9 +11,8 @@ import {
 	isDeletionCandidate,
 	tierForScore,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/retention";
-import type { RetentionContext, RetentionSignals } from "@oh-my-pi/pi-coding-agent/memory-fabric/retention";
-import { createMemoryRecord } from "@oh-my-pi/pi-coding-agent/memory-fabric/types";
 import type { CreateMemoryRecordInput, MemoryRecord } from "@oh-my-pi/pi-coding-agent/memory-fabric/types";
+import { createMemoryRecord } from "@oh-my-pi/pi-coding-agent/memory-fabric/types";
 
 function record(overrides?: Partial<CreateMemoryRecordInput>): MemoryRecord {
 	return createMemoryRecord({
