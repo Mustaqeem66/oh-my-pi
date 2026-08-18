@@ -19,13 +19,7 @@
  *   - Pure, observe-only, fail-open, disabled by default.
  */
 
-export type CapabilitySeedSource =
-	| "lexical"
-	| "semantic"
-	| "project"
-	| "workflow"
-	| "historical"
-	| "kind-match";
+export type CapabilitySeedSource = "lexical" | "semantic" | "project" | "workflow" | "historical" | "kind-match";
 
 export interface RankedCapabilityList {
 	source: CapabilitySeedSource;
