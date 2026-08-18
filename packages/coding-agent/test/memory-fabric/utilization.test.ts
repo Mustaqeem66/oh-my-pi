@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 
 import {
 	type ContextItemUtilization,
-	type UtilizationSignals,
 	calculateExpansionUtilization,
 	calculateItemUtilizationScore,
 	calculateNeedCoverageRate,
@@ -13,6 +12,7 @@ import {
 	classifyUtilization,
 	inferSignalsFromBehavior,
 	preventExpansionLoop,
+	type UtilizationSignals,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/utilization";
 
 function signals(overrides: Partial<UtilizationSignals> = {}): UtilizationSignals {
