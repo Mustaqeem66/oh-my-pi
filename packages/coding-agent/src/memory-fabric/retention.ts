@@ -134,8 +134,7 @@ export function computeRetentionScore(
 	const successfulUseRate = signals.retrievalCount > 0 ? clamp01(signals.usefulCount / signals.retrievalCount) : 0;
 
 	const projectMatch = record.projectId === context.currentProjectId ? 1 : 0;
-	const branchMatch =
-		context.currentBranchId !== undefined && record.branchId === context.currentBranchId ? 1 : 0;
+	const branchMatch = context.currentBranchId !== undefined && record.branchId === context.currentBranchId ? 1 : 0;
 	const scopeRelevance = projectMatch * 0.7 + branchMatch * 0.3;
 
 	const uniqueness = 1 / (1 + Math.max(0, signals.duplicateCount));
