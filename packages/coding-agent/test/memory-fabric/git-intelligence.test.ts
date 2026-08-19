@@ -34,11 +34,13 @@ function iso(daysAgo: number): string {
 
 let shaSeq = 0;
 
-function mkCommit(
-	daysAgo: number,
-	paths: Array<string | { path: string; previousPath?: string; status?: GitCommitRecord["files"][number]["status"] }>,
-	author = "alice",
-): GitCommitRecord {
+interface FileSpec {
+	path: string;
+	previousPath?: string;
+	status?: GitCommitRecord["files"][number]["status"];
+}
+
+function mkCommit(daysAgo: number, paths: Array<string | FileSpec>, author = "alice"): GitCommitRecord {
 	const at = iso(daysAgo);
 	return {
 		sha: `sha_${(shaSeq++).toString(36).padStart(4, "0")}`,
@@ -49,7 +51,7 @@ function mkCommit(
 		authorEmail: `${author}@example.com`,
 		subject: `change ${paths.length} files`,
 		files: paths.map(p => {
-			const spec = typeof p === "string" ? { path: p } : p;
+			const spec: FileSpec = typeof p === "string" ? { path: p } : p;
 			return {
 				path: spec.path,
 				previousPath: spec.previousPath,
