@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 
 import {
 	aggregateMetrics,
+	type CalibrationSample,
 	calibrate,
 	calibratePerProject,
-	type CalibrationSample,
-	decideRegime,
 	DEFAULT_CALIBRATION_PARAMETERS,
+	decideRegime,
 	sampleFromPacketUtilization,
 } from "@oh-my-pi/pi-coding-agent/memory-fabric/calibration";
 
