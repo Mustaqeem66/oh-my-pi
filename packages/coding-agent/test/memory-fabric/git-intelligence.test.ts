@@ -8,8 +8,8 @@ import {
 	assessHistoryQuality,
 	buildLogArgs,
 	buildPathIdentities,
-	decayWeight,
 	DEFAULT_GIT_INTELLIGENCE_CONFIG,
+	decayWeight,
 	emitFeedback,
 	evaluateAdvisory,
 	GIT_LOG_FORMAT,
@@ -210,7 +210,10 @@ describe("memory-fabric git-intelligence analyzers", () => {
 		const commits = [
 			mkCommit(1, ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts"]),
 			mkCommit(2, ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts"]),
-			mkCommit(3, Array.from({ length: 10 }, (_, i) => `bulk/${i}.ts`)),
+			mkCommit(
+				3,
+				Array.from({ length: 10 }, (_, i) => `bulk/${i}.ts`),
+			),
 		];
 		const index = buildPathIdentities(commits);
 		const co = analyzeCoChange(commits, index, policy, NOW);
