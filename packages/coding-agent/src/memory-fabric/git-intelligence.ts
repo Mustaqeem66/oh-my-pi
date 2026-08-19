@@ -434,7 +434,7 @@ export function parseGitLog(raw: string): GitCommitRecord[] {
 		if (fields.length < 7) continue;
 		// A stray inter-record separator can glue onto the leading sha field.
 		const sha = (fields[0] ?? "").trim();
-		const parentsRaw = (fields[1] ??"").trim();
+		const parentsRaw = (fields[1] ?? "").trim();
 		const authoredAt = fields[2] ?? "";
 		const committedAt = fields[3] ?? "";
 		const authorName = fields[4] ?? "";
