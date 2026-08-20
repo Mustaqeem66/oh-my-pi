@@ -173,7 +173,7 @@ export class FooterComponent implements Component {
 					billingParts.push(`$${formatted}`);
 				}
 			} else if (usingSubscription) {
-				billingParts.push(theme.getSymbolPreset() === "nerd" && subscriptionIcon ? subscriptionIcon : "(sub)");
+				billingParts.push(theme.getSymbolPreset() === "nerd" && subscriptionIcon ? subscriptionIcon : "(oauth)");
 			}
 			if (normalizedPremiumRequests) billingParts.push(`★ ${formatNumber(normalizedPremiumRequests)}`);
 			if (billingParts.length > 0) statsParts.push(billingParts.join(" "));
