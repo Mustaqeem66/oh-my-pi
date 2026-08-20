@@ -1,8 +1,15 @@
-import { describe, expect, test } from "bun:test";
-import { renderSegment } from "../src/modes/components/status-line/segments";
-import type { SegmentContext } from "../src/modes/components/status-line/types";
-import { SYMBOL_PRESETS } from "../src/modes/theme/symbols";
-import { theme } from "../src/modes/theme/theme";
+import { beforeAll, describe, expect, test } from "bun:test";
+import { renderSegment } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/segments";
+import type { SegmentContext } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/types";
+import { SYMBOL_PRESETS } from "@oh-my-pi/pi-coding-agent/modes/theme/symbols";
+import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+
+// The module-level `theme` export is only usable after initTheme() resolves;
+// rendering a segment before that throws (getSymbolPreset on an empty proxy).
+// Every status-line test that calls renderSegment must do this first.
+beforeAll(async () => {
+	await initTheme();
+});
 
 /** Issue #5112: OAuth-billed models used to render a "(sub)" badge, which users
  *  read as "subagent" and mistook for the session being stuck in subagent mode.
