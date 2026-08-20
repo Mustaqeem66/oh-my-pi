@@ -115,13 +115,19 @@ export class CheckpointStore {
 		return row ? rowToSnapshot(row) : null;
 	}
 
-	/** The most recent checkpoint for a session, or `null` when it has none. */
+	/**
+	 * The most recent checkpoint for a session, or `null` when it has none.
+	 *
+	 * Ties on `created_at` (millisecond ISO strings collide under fast
+	 * successive writes) break on `rowid` — insertion order — because the
+	 * random-suffix ids sort in an order unrelated to creation time.
+	 */
 	latestForSession(sessionId: string): CheckpointSnapshot | null {
 		const row = this.#db
 			.query(`
 			SELECT * FROM checkpoints
 			WHERE project_id = ? AND session_id = ?
-			ORDER BY created_at DESC, id DESC LIMIT 1
+			ORDER BY created_at DESC, rowid DESC LIMIT 1
 		`)
 			.get(this.#scope.projectId, sessionId) as Record<string, unknown> | null;
 		return row ? rowToSnapshot(row) : null;
@@ -133,7 +139,7 @@ export class CheckpointStore {
 			.query(`
 			SELECT * FROM checkpoints
 			WHERE project_id = ?
-			ORDER BY created_at DESC, id DESC LIMIT ?
+			ORDER BY created_at DESC, rowid DESC LIMIT ?
 		`)
 			.all(this.#scope.projectId, limit) as Array<Record<string, unknown>>;
 		return rows.map(rowToSnapshot);
@@ -154,7 +160,7 @@ export class CheckpointStore {
 			WHERE project_id = ? AND id NOT IN (
 				SELECT id FROM checkpoints
 				WHERE project_id = ?
-				ORDER BY created_at DESC, id DESC LIMIT ?
+				ORDER BY created_at DESC, rowid DESC LIMIT ?
 			)
 		`)
 			.run(this.#scope.projectId, this.#scope.projectId, keepLatest);
