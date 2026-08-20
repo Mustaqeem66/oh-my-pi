@@ -90,19 +90,19 @@ function coerceWeight(value: unknown): number | undefined {
  * Never mutates the descriptors or any registry; safe to construct at any time.
  */
 export class CapabilityGraph {
-	private readonly enabled: boolean;
-	private readonly rejectRegistrationCycles: boolean;
-	private readonly edges = new Map<string, CapabilityEdge>();
-	private readonly knownIds = new Set<string>();
+	readonly #enabled: boolean;
+	readonly #rejectRegistrationCycles: boolean;
+	readonly #edges = new Map<string, CapabilityEdge>();
+	readonly #knownIds = new Set<string>();
 	readonly rejectedRegistrationEdges: Array<{ from: string; to: string; kind: CapabilityEdgeKind }> = [];
 
 	constructor(options: CapabilityGraphOptions = {}) {
-		this.enabled = options.enabled === true;
-		this.rejectRegistrationCycles = options.rejectRegistrationCycles === true;
+		this.#enabled = options.enabled === true;
+		this.#rejectRegistrationCycles = options.rejectRegistrationCycles === true;
 	}
 
 	get isEnabled(): boolean {
-		return this.enabled;
+		return this.#enabled;
 	}
 
 	/**
@@ -110,12 +110,12 @@ export class CapabilityGraph {
 	 * No-op when disabled. Fail-open: malformed entries are skipped silently.
 	 */
 	ingest(descriptors: readonly CapabilityDescriptor[]): this {
-		if (!this.enabled) return this;
+		if (!this.#enabled) return this;
 		try {
 			for (const descriptor of descriptors) {
 				if (!descriptor || !isNonEmptyString(descriptor.id)) continue;
-				this.knownIds.add(descriptor.id);
-				this.parseDescriptorEdges(descriptor);
+				this.#knownIds.add(descriptor.id);
+				this.#parseDescriptorEdges(descriptor);
 			}
 		} catch {
 			// Fail-open: partial graphs are acceptable; never throw to callers.
@@ -123,14 +123,14 @@ export class CapabilityGraph {
 		return this;
 	}
 
-	private parseDescriptorEdges(descriptor: CapabilityDescriptor): void {
+	#parseDescriptorEdges(descriptor: CapabilityDescriptor): void {
 		const metadata = descriptor.metadata;
 		if (!metadata || typeof metadata !== "object") return;
 
 		const canonical = (metadata as Record<string, unknown>).edges;
 		if (Array.isArray(canonical)) {
 			for (const raw of canonical) {
-				this.addRawEdge(descriptor.id, raw as RawEdgeDeclaration);
+				this.#addRawEdge(descriptor.id, raw as RawEdgeDeclaration);
 			}
 		}
 
@@ -139,38 +139,38 @@ export class CapabilityGraph {
 			if (!Array.isArray(list)) continue;
 			for (const entry of list) {
 				if (isNonEmptyString(entry)) {
-					this.addEdge(descriptor.id, entry, kind);
+					this.#addEdge(descriptor.id, entry, kind);
 				} else if (entry && typeof entry === "object") {
 					const obj = entry as RawEdgeDeclaration;
 					if (isNonEmptyString(obj.to)) {
-						this.addEdge(descriptor.id, obj.to, kind, coerceWeight(obj.weight));
+						this.#addEdge(descriptor.id, obj.to, kind, coerceWeight(obj.weight));
 					}
 				}
 			}
 		}
 	}
 
-	private addRawEdge(from: string, raw: RawEdgeDeclaration): void {
+	#addRawEdge(from: string, raw: RawEdgeDeclaration): void {
 		if (!raw || typeof raw !== "object") return;
 		if (!isNonEmptyString(raw.to)) return;
 		if (!isNonEmptyString(raw.kind)) return;
 		const kind = raw.kind as CapabilityEdgeKind;
 		if (!KNOWN_EDGE_KINDS.has(kind)) return;
-		this.addEdge(from, raw.to, kind, coerceWeight(raw.weight));
+		this.#addEdge(from, raw.to, kind, coerceWeight(raw.weight));
 	}
 
-	private addEdge(from: string, to: string, kind: CapabilityEdgeKind, weight?: number): void {
+	#addEdge(from: string, to: string, kind: CapabilityEdgeKind, weight?: number): void {
 		if (from === to) return; // no self-edges
-		if (this.rejectRegistrationCycles && this.wouldCreateMandatoryCycle(from, to, kind)) {
+		if (this.#rejectRegistrationCycles && this.#wouldCreateMandatoryCycle(from, to, kind)) {
 			this.rejectedRegistrationEdges.push({ from, to, kind });
 			return;
 		}
 		const edge: CapabilityEdge = { from, to, kind, source: "static" };
 		if (weight !== undefined) edge.weight = weight;
-		this.edges.set(edgeKey(edge), edge);
+		this.#edges.set(edgeKey(edge), edge);
 	}
 
-	private wouldCreateMandatoryCycle(from: string, to: string, kind: CapabilityEdgeKind): boolean {
+	#wouldCreateMandatoryCycle(from: string, to: string, kind: CapabilityEdgeKind): boolean {
 		if (kind !== "requires") return false;
 		const visited = new Set<string>();
 		const queue = [to];
@@ -189,8 +189,8 @@ export class CapabilityGraph {
 
 	/** All stored edges (defensive copy). Empty when disabled. */
 	listEdges(): CapabilityEdge[] {
-		if (!this.enabled) return [];
-		return [...this.edges.values()];
+		if (!this.#enabled) return [];
+		return [...this.#edges.values()];
 	}
 
 	/**
@@ -198,9 +198,9 @@ export class CapabilityGraph {
 	 * edges declared toward `id` (so a mutual relation is visible from both ends).
 	 */
 	getEdges(id: string, kind?: CapabilityEdgeKind): CapabilityEdge[] {
-		if (!this.enabled || !isNonEmptyString(id)) return [];
+		if (!this.#enabled || !isNonEmptyString(id)) return [];
 		const result: CapabilityEdge[] = [];
-		for (const edge of this.edges.values()) {
+		for (const edge of this.#edges.values()) {
 			if (kind && edge.kind !== kind) continue;
 			if (edge.from === id) {
 				result.push(edge);
@@ -214,9 +214,9 @@ export class CapabilityGraph {
 
 	/** Edges that point at `id` (directional incoming). */
 	getIncomingEdges(id: string, kind?: CapabilityEdgeKind): CapabilityEdge[] {
-		if (!this.enabled || !isNonEmptyString(id)) return [];
+		if (!this.#enabled || !isNonEmptyString(id)) return [];
 		const result: CapabilityEdge[] = [];
-		for (const edge of this.edges.values()) {
+		for (const edge of this.#edges.values()) {
 			if (kind && edge.kind !== kind) continue;
 			if (edge.to === id) result.push(edge);
 		}
@@ -230,14 +230,14 @@ export class CapabilityGraph {
 
 	/** All edges of a given kind across the graph. */
 	getEdgesByKind(kind: CapabilityEdgeKind): CapabilityEdge[] {
-		if (!this.enabled) return [];
-		return [...this.edges.values()].filter(e => e.kind === kind);
+		if (!this.#enabled) return [];
+		return [...this.#edges.values()].filter(e => e.kind === kind);
 	}
 
 	/** Read-only conflict check (symmetric). */
 	hasConflict(idA: string, idB: string): boolean {
-		if (!this.enabled || !isNonEmptyString(idA) || !isNonEmptyString(idB)) return false;
-		for (const edge of this.edges.values()) {
+		if (!this.#enabled || !isNonEmptyString(idA) || !isNonEmptyString(idB)) return false;
+		for (const edge of this.#edges.values()) {
 			if (edge.kind !== "conflicts-with") continue;
 			if ((edge.from === idA && edge.to === idB) || (edge.from === idB && edge.to === idA)) {
 				return true;
@@ -251,10 +251,10 @@ export class CapabilityGraph {
 	 * Useful for validation (a `requires` pointing at a missing capability).
 	 */
 	danglingTargets(): string[] {
-		if (!this.enabled) return [];
+		if (!this.#enabled) return [];
 		const missing = new Set<string>();
-		for (const edge of this.edges.values()) {
-			if (!this.knownIds.has(edge.to)) missing.add(edge.to);
+		for (const edge of this.#edges.values()) {
+			if (!this.#knownIds.has(edge.to)) missing.add(edge.to);
 		}
 		return [...missing];
 	}
@@ -262,8 +262,8 @@ export class CapabilityGraph {
 	/** Read-only snapshot for observability/telemetry. */
 	toJSON(): { enabled: boolean; edgeCount: number; edges: CapabilityEdge[]; danglingTargets: string[] } {
 		return {
-			enabled: this.enabled,
-			edgeCount: this.enabled ? this.edges.size : 0,
+			enabled: this.#enabled,
+			edgeCount: this.#enabled ? this.#edges.size : 0,
 			edges: this.listEdges(),
 			danglingTargets: this.danglingTargets(),
 		};
@@ -271,12 +271,12 @@ export class CapabilityGraph {
 
 	/** Number of capabilities seen during ingest. */
 	getNodeCount(): number {
-		return this.enabled ? this.knownIds.size : 0;
+		return this.#enabled ? this.#knownIds.size : 0;
 	}
 
 	/** Number of stored edges (excludes rejected registrations). */
 	getEdgeCount(): number {
-		return this.enabled ? this.edges.size : 0;
+		return this.#enabled ? this.#edges.size : 0;
 	}
 
 	/**
@@ -285,10 +285,10 @@ export class CapabilityGraph {
 	 * Iterative traversal (stack-safe); O(V+E). Returns 0 when disabled.
 	 */
 	getCycleCount(): number {
-		if (!this.enabled) return 0;
+		if (!this.#enabled) return 0;
 		const adjacency = new Map<string, string[]>();
-		for (const node of this.knownIds) adjacency.set(node, []);
-		for (const edge of this.edges.values()) {
+		for (const node of this.#knownIds) adjacency.set(node, []);
+		for (const edge of this.#edges.values()) {
 			const bucket = adjacency.get(edge.from);
 			if (bucket) {
 				bucket.push(edge.to);

@@ -83,45 +83,45 @@ export class WorkingStateLaneAdapter implements MemoryLaneAdapter {
 	readonly id = "working-state" as const;
 	readonly name = "Working State";
 
-	private readonly workingState: WorkingStatePort;
-	private readonly now: NowFn;
+	readonly #workingState: WorkingStatePort;
+	readonly #now: NowFn;
 
 	constructor(workingState: WorkingStatePort, ports?: { now?: NowFn }) {
-		this.workingState = workingState;
-		this.now = ports?.now ?? Date.now;
+		this.#workingState = workingState;
+		this.#now = ports?.now ?? Date.now;
 	}
 
 	async retrieve(
 		request: TieredRetrievalRequest,
 		options: TieredRetrievalOptions,
 	): Promise<RetrievedMemoryCandidate[]> {
-		const state = await this.workingState.getCurrent();
+		const state = await this.#workingState.getCurrent();
 		if (!state) return [];
 
 		const items: RetrievedMemoryCandidate[] = [];
 
 		if (state.objective) {
-			items.push(this.candidate(request.scope, "L0", "continuity", "objective", state.objective, 1, 1));
+			items.push(this.#candidate(request.scope, "L0", "continuity", "objective", state.objective, 1, 1));
 		}
 
 		if (state.currentStep) {
 			const content = `Current step: ${state.currentStep}`;
-			items.push(this.candidate(request.scope, "L0", "continuity", "current-step", content, 1, 1));
+			items.push(this.#candidate(request.scope, "L0", "continuity", "current-step", content, 1, 1));
 		}
 
 		for (const constraint of state.constraints ?? []) {
-			items.push(this.candidate(request.scope, "L1", "constraint", "constraint", constraint, 0.8, 0.9));
+			items.push(this.#candidate(request.scope, "L1", "constraint", "constraint", constraint, 0.8, 0.9));
 		}
 
 		for (const error of state.unresolvedErrors ?? []) {
 			const content = `Unresolved: ${error}`;
-			items.push(this.candidate(request.scope, "L2", "failure", "unresolved-error", content, 0.9, 0.9));
+			items.push(this.#candidate(request.scope, "L2", "failure", "unresolved-error", content, 0.9, 0.9));
 		}
 
 		return capAndFilter(items, options);
 	}
 
-	private candidate(
+	#candidate(
 		scope: MemoryScope,
 		tier: "L0" | "L1" | "L2",
 		type: string,
@@ -154,7 +154,7 @@ export class WorkingStateLaneAdapter implements MemoryLaneAdapter {
 	}
 
 	healthCheck(): Promise<LaneHealth> {
-		return probeHealth(this.now, () => this.workingState.getCurrent());
+		return probeHealth(this.#now, () => this.#workingState.getCurrent());
 	}
 }
 
@@ -192,19 +192,19 @@ export class CanonicalLaneAdapter implements MemoryLaneAdapter {
 	readonly id = "canonical" as const;
 	readonly name = "Canonical Memory";
 
-	private readonly store: CanonicalStorePort;
-	private readonly now: NowFn;
+	readonly #store: CanonicalStorePort;
+	readonly #now: NowFn;
 
 	constructor(store: CanonicalStorePort, ports?: { now?: NowFn }) {
-		this.store = store;
-		this.now = ports?.now ?? Date.now;
+		this.#store = store;
+		this.#now = ports?.now ?? Date.now;
 	}
 
 	async retrieve(
 		request: TieredRetrievalRequest,
 		options: TieredRetrievalOptions,
 	): Promise<RetrievedMemoryCandidate[]> {
-		const records = this.store.getRecordsByScope(request.scope);
+		const records = this.#store.getRecordsByScope(request.scope);
 		const included = records.filter(r => options.includeProvisional || r.verification !== "model-proposed");
 
 		const candidates = included.map<RetrievedMemoryCandidate>(record => ({
@@ -217,7 +217,7 @@ export class CanonicalLaneAdapter implements MemoryLaneAdapter {
 			scope: record.scope,
 			scopeScore: 1,
 			confidence: record.confidence,
-			freshness: this.computeFreshness(record.createdAt),
+			freshness: this.#computeFreshness(record.createdAt),
 			usefulness: record.importance,
 			importance: record.importance,
 			status: record.status,
@@ -230,15 +230,15 @@ export class CanonicalLaneAdapter implements MemoryLaneAdapter {
 		return capAndFilter(candidates, options);
 	}
 
-	private computeFreshness(createdAt: string): number {
+	#computeFreshness(createdAt: string): number {
 		const createdMs = new Date(createdAt).getTime();
 		if (!Number.isFinite(createdMs)) return 0;
-		const ageMs = Math.max(0, this.now() - createdMs);
+		const ageMs = Math.max(0, this.#now() - createdMs);
 		return Math.max(0, 1 - ageMs / FRESHNESS_HORIZON_MS);
 	}
 
 	healthCheck(): Promise<LaneHealth> {
-		return probeHealth(this.now, () => this.store.getRecordsByScope({ projectId: "__health__" }));
+		return probeHealth(this.#now, () => this.#store.getRecordsByScope({ projectId: "__health__" }));
 	}
 }
 
@@ -275,12 +275,12 @@ export class MemvidLaneAdapter implements MemoryLaneAdapter {
 	readonly id = "memvid" as const;
 	readonly name = "Memvid Evidence";
 
-	private readonly memvid: MemvidRecallPort;
-	private readonly now: NowFn;
+	readonly #memvid: MemvidRecallPort;
+	readonly #now: NowFn;
 
 	constructor(memvid: MemvidRecallPort, ports?: { now?: NowFn }) {
-		this.memvid = memvid;
-		this.now = ports?.now ?? Date.now;
+		this.#memvid = memvid;
+		this.#now = ports?.now ?? Date.now;
 	}
 
 	async retrieve(
@@ -289,7 +289,7 @@ export class MemvidLaneAdapter implements MemoryLaneAdapter {
 	): Promise<RetrievedMemoryCandidate[]> {
 		if (!request.requestedTiers.includes("L4") && !request.includeHistorical) return [];
 
-		const memories = await this.memvid.recall(request.query, {
+		const memories = await this.#memvid.recall(request.query, {
 			maxTokens: request.maximumTokens ?? 8000,
 			types: ["evidence", "episode"],
 		});
@@ -320,7 +320,7 @@ export class MemvidLaneAdapter implements MemoryLaneAdapter {
 	}
 
 	healthCheck(): Promise<LaneHealth> {
-		return probeHealth(this.now, () => this.memvid.recall("__health__", { maxTokens: 10 }));
+		return probeHealth(this.#now, () => this.#memvid.recall("__health__", { maxTokens: 10 }));
 	}
 }
 
@@ -342,12 +342,12 @@ export class GraphifyLaneAdapter implements MemoryLaneAdapter {
 	readonly id = "graphify" as const;
 	readonly name = "Graphify Code Graph";
 
-	private readonly graph: GraphQueryPort;
-	private readonly now: NowFn;
+	readonly #graph: GraphQueryPort;
+	readonly #now: NowFn;
 
 	constructor(graph: GraphQueryPort, ports?: { now?: NowFn }) {
-		this.graph = graph;
-		this.now = ports?.now ?? Date.now;
+		this.#graph = graph;
+		this.#now = ports?.now ?? Date.now;
 	}
 
 	async retrieve(
@@ -366,35 +366,35 @@ export class GraphifyLaneAdapter implements MemoryLaneAdapter {
 
 		for (const file of files) {
 			const [deps, dependents] = await Promise.all([
-				this.graph.findDependencies(file, projectId),
-				this.graph.findDependents(file, projectId),
+				this.#graph.findDependencies(file, projectId),
+				this.#graph.findDependents(file, projectId),
 			]);
 			for (const dep of deps) {
-				add(this.edgeCandidate(request.scope, "dependency", file, dep, `${file} depends on ${dep}`));
+				add(this.#edgeCandidate(request.scope, "dependency", file, dep, `${file} depends on ${dep}`));
 			}
 			for (const dependent of dependents) {
 				const content = `${dependent} depends on ${file}`;
-				add(this.edgeCandidate(request.scope, "dependency", dependent, file, content));
+				add(this.#edgeCandidate(request.scope, "dependency", dependent, file, content));
 			}
 		}
 
 		for (const symbol of symbols) {
 			const [callers, callees] = await Promise.all([
-				this.graph.findCallers(symbol, projectId),
-				this.graph.findCallees(symbol, projectId),
+				this.#graph.findCallers(symbol, projectId),
+				this.#graph.findCallees(symbol, projectId),
 			]);
 			for (const caller of callers) {
-				add(this.edgeCandidate(request.scope, "call", caller, symbol, `${caller} calls ${symbol}`));
+				add(this.#edgeCandidate(request.scope, "call", caller, symbol, `${caller} calls ${symbol}`));
 			}
 			for (const callee of callees) {
-				add(this.edgeCandidate(request.scope, "call", symbol, callee, `${symbol} calls ${callee}`));
+				add(this.#edgeCandidate(request.scope, "call", symbol, callee, `${symbol} calls ${callee}`));
 			}
 		}
 
 		return capAndFilter([...byId.values()], options);
 	}
 
-	private edgeCandidate(
+	#edgeCandidate(
 		scope: MemoryScope,
 		kind: "dependency" | "call",
 		from: string,
@@ -425,7 +425,7 @@ export class GraphifyLaneAdapter implements MemoryLaneAdapter {
 	}
 
 	healthCheck(): Promise<LaneHealth> {
-		return probeHealth(this.now, () => this.graph.findCallers("__health__", "__health__"));
+		return probeHealth(this.#now, () => this.#graph.findCallers("__health__", "__health__"));
 	}
 }
 
@@ -449,12 +449,12 @@ export class MemPalaceLaneAdapter implements MemoryLaneAdapter {
 	readonly id = "mempalace" as const;
 	readonly name = "MemPalace Episodes";
 
-	private readonly episodes: EpisodeRecallPort;
-	private readonly now: NowFn;
+	readonly #episodes: EpisodeRecallPort;
+	readonly #now: NowFn;
 
 	constructor(episodes: EpisodeRecallPort, ports?: { now?: NowFn }) {
-		this.episodes = episodes;
-		this.now = ports?.now ?? Date.now;
+		this.#episodes = episodes;
+		this.#now = ports?.now ?? Date.now;
 	}
 
 	async retrieve(
@@ -463,7 +463,7 @@ export class MemPalaceLaneAdapter implements MemoryLaneAdapter {
 	): Promise<RetrievedMemoryCandidate[]> {
 		if (!request.requestedTiers.includes("L4") && !request.includeHistorical) return [];
 
-		const recalled = await this.episodes.recallEpisode(request.query, request.scope.projectId);
+		const recalled = await this.#episodes.recallEpisode(request.query, request.scope.projectId);
 
 		const candidates = recalled.map<RetrievedMemoryCandidate>(ep => ({
 			memoryId: ep.episodeId,
@@ -489,6 +489,6 @@ export class MemPalaceLaneAdapter implements MemoryLaneAdapter {
 	}
 
 	healthCheck(): Promise<LaneHealth> {
-		return probeHealth(this.now, () => this.episodes.recallEpisode("__health__", "__health__"));
+		return probeHealth(this.#now, () => this.#episodes.recallEpisode("__health__", "__health__"));
 	}
 }

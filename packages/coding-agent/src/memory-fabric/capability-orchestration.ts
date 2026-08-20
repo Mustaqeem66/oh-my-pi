@@ -74,8 +74,8 @@ export interface TelemetryEvent {
  * Pure data structure — registration and lookup only, no IO.
  */
 export class CapabilityCache {
-	private descriptors = new Map<string, CapabilityDescriptor>();
-	private cacheVersion = 1;
+	#descriptors = new Map<string, CapabilityDescriptor>();
+	#cacheVersion = 1;
 
 	/**
 	 * Register or update a capability. Re-registering an existing id bumps its
@@ -83,17 +83,17 @@ export class CapabilityCache {
 	 * (or 1 when the declared version is not a positive number).
 	 */
 	registerCapability(descriptor: CapabilityDescriptor): void {
-		const existing = this.descriptors.get(descriptor.id);
+		const existing = this.#descriptors.get(descriptor.id);
 		const declared = Number.isFinite(descriptor.version) && descriptor.version > 0 ? descriptor.version : 1;
 		const newVersion = existing ? existing.version + 1 : declared;
 
-		this.descriptors.set(descriptor.id, { ...descriptor, version: newVersion });
-		this.cacheVersion++;
+		this.#descriptors.set(descriptor.id, { ...descriptor, version: newVersion });
+		this.#cacheVersion++;
 	}
 
 	/** Enabled descriptor by id, or null when missing or disabled. */
 	getCapability(id: string): CapabilityDescriptor | null {
-		const desc = this.descriptors.get(id);
+		const desc = this.#descriptors.get(id);
 		return desc?.enabled ? desc : null;
 	}
 
@@ -109,7 +109,7 @@ export class CapabilityCache {
 		const queryTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
 		const scored: Array<{ match: CapabilityMatch; rawScore: number }> = [];
 
-		for (const desc of this.descriptors.values()) {
+		for (const desc of this.#descriptors.values()) {
 			if (!desc.enabled) continue;
 			if (options.kind && desc.kind !== options.kind) continue;
 
@@ -151,21 +151,21 @@ export class CapabilityCache {
 	/** Remove one capability (by id) or clear the whole registry. */
 	invalidate(id?: string): void {
 		if (id) {
-			this.descriptors.delete(id);
+			this.#descriptors.delete(id);
 		} else {
-			this.descriptors.clear();
+			this.#descriptors.clear();
 		}
-		this.cacheVersion++;
+		this.#cacheVersion++;
 	}
 
 	getCacheVersion(): number {
-		return this.cacheVersion;
+		return this.#cacheVersion;
 	}
 
 	/** All enabled descriptors, optionally filtered by kind. */
 	listCapabilities(kind?: CapabilityKind): CapabilityDescriptor[] {
 		const list: CapabilityDescriptor[] = [];
-		for (const desc of this.descriptors.values()) {
+		for (const desc of this.#descriptors.values()) {
 			if (desc.enabled && (!kind || desc.kind === kind)) list.push(desc);
 		}
 		return list;
@@ -185,35 +185,35 @@ export interface CapabilityPlannerOptions {
  * per-step approval decisions. It never invokes a capability.
  */
 export class CapabilityPlanner {
-	private readonly cache: CapabilityCache;
-	private rolloutMode: RolloutMode;
-	private readonly planIdFactory: () => string;
-	private readonly nowIso: () => string;
-	private readonly telemetryEvents: TelemetryEvent[] = [];
-	private planCounter = 0;
+	readonly #cache: CapabilityCache;
+	#rolloutMode: RolloutMode;
+	readonly #planIdFactory: () => string;
+	readonly #nowIso: () => string;
+	readonly #telemetryEvents: TelemetryEvent[] = [];
+	#planCounter = 0;
 
 	constructor(cache: CapabilityCache, options: CapabilityPlannerOptions = {}) {
-		this.cache = cache;
-		this.rolloutMode = options.rolloutMode ?? "active";
-		this.planIdFactory = options.planIdFactory ?? (() => `plan-${++this.planCounter}`);
-		this.nowIso = options.nowIso ?? (() => "1970-01-01T00:00:00.000Z");
+		this.#cache = cache;
+		this.#rolloutMode = options.rolloutMode ?? "active";
+		this.#planIdFactory = options.planIdFactory ?? (() => `plan-${++this.#planCounter}`);
+		this.#nowIso = options.nowIso ?? (() => "1970-01-01T00:00:00.000Z");
 	}
 
 	setRolloutMode(mode: RolloutMode): void {
-		this.rolloutMode = mode;
+		this.#rolloutMode = mode;
 	}
 
 	getRolloutMode(): RolloutMode {
-		return this.rolloutMode;
+		return this.#rolloutMode;
 	}
 
 	/** Create an execution plan for a task intent. Empty when rollout is off. */
 	createExecutionPlan(intent: string): ExecutionPlan {
-		if (this.rolloutMode === "off") {
-			return { planId: this.planIdFactory(), intent, steps: [], rolloutMode: "off" };
+		if (this.#rolloutMode === "off") {
+			return { planId: this.#planIdFactory(), intent, steps: [], rolloutMode: "off" };
 		}
 
-		const matches = this.cache.matchCapabilities(intent);
+		const matches = this.#cache.matchCapabilities(intent);
 		const steps: ExecutionPlanStep[] = matches.map((m, idx) => ({
 			stepIndex: idx + 1,
 			capabilityId: m.descriptor.id,
@@ -222,9 +222,9 @@ export class CapabilityPlanner {
 			approvalRequired: m.descriptor.requiresApproval === true,
 		}));
 
-		this.logTelemetry("plan_created", { intent, stepCount: steps.length });
+		this.#logTelemetry("plan_created", { intent, stepCount: steps.length });
 
-		return { planId: this.planIdFactory(), intent, steps, rolloutMode: this.rolloutMode };
+		return { planId: this.#planIdFactory(), intent, steps, rolloutMode: this.#rolloutMode };
 	}
 
 	/**
@@ -232,10 +232,10 @@ export class CapabilityPlanner {
 	 * A step that requires approval is only auto-approved in autonomous mode.
 	 */
 	approveExecution(step: ExecutionPlanStep): { approved: boolean; reason: string } {
-		if (this.rolloutMode === "off") {
+		if (this.#rolloutMode === "off") {
 			return { approved: false, reason: "Orchestration rollout mode is OFF" };
 		}
-		if (step.approvalRequired && this.rolloutMode !== "autonomous") {
+		if (step.approvalRequired && this.#rolloutMode !== "autonomous") {
 			return { approved: false, reason: "Step requires explicit user approval" };
 		}
 		return { approved: true, reason: "Approved under safety policy" };
@@ -246,12 +246,12 @@ export class CapabilityPlanner {
 	 * executed. In `off`/`suggest` modes every step is reported unapproved.
 	 */
 	evaluatePlan(plan: ExecutionPlan): StepApprovalDecision[] {
-		if (this.rolloutMode === "off" || this.rolloutMode === "suggest") {
+		if (this.#rolloutMode === "off" || this.#rolloutMode === "suggest") {
 			return plan.steps.map(step => ({
 				stepIndex: step.stepIndex,
 				capabilityId: step.capabilityId,
 				approved: false,
-				reason: `Execution paused in rollout mode: ${this.rolloutMode}`,
+				reason: `Execution paused in rollout mode: ${this.#rolloutMode}`,
 			}));
 		}
 		return plan.steps.map(step => {
@@ -265,12 +265,12 @@ export class CapabilityPlanner {
 		});
 	}
 
-	private logTelemetry(type: string, details: Record<string, unknown>): void {
-		this.telemetryEvents.push({ timestamp: this.nowIso(), type, details });
+	#logTelemetry(type: string, details: Record<string, unknown>): void {
+		this.#telemetryEvents.push({ timestamp: this.#nowIso(), type, details });
 	}
 
 	/** Defensive copy of the telemetry buffer. */
 	getTelemetry(): TelemetryEvent[] {
-		return [...this.telemetryEvents];
+		return [...this.#telemetryEvents];
 	}
 }
