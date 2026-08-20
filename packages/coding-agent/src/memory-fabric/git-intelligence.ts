@@ -1102,22 +1102,22 @@ export type FeedbackJournalSink = (event: FeedbackEvent) => void | Promise<void>
 
 /** In-memory append-only journal for tests and evidence collection. */
 export class InMemoryFeedbackJournal {
-	private readonly events: FeedbackEvent[] = [];
+	readonly #events: FeedbackEvent[] = [];
 
 	readonly sink: FeedbackJournalSink = event => {
-		this.events.push(event);
+		this.#events.push(event);
 	};
 
 	all(): readonly FeedbackEvent[] {
-		return this.events;
+		return this.#events;
 	}
 
 	forProject(projectId: string): FeedbackEvent[] {
-		return this.events.filter(e => e.projectId === projectId);
+		return this.#events.filter(e => e.projectId === projectId);
 	}
 
 	get size(): number {
-		return this.events.length;
+		return this.#events.length;
 	}
 }
 
@@ -1164,86 +1164,86 @@ export interface GitIntelligenceOptions {
  */
 export class GitIntelligence {
 	readonly config: GitIntelligenceConfig;
-	private readonly cwd: string;
-	private readonly runGit: RunGit;
-	private readonly now: () => number;
-	private readonly maxCount?: number;
-	private analysis: AnalysisResult | null = null;
-	private buildState: BuildState;
-	private warming: Promise<void> | null = null;
+	readonly #cwd: string;
+	readonly #runGit: RunGit;
+	readonly #now: () => number;
+	readonly #maxCount?: number;
+	#analysis: AnalysisResult | null = null;
+	#buildState: BuildState;
+	#warming: Promise<void> | null = null;
 
 	constructor(options: GitIntelligenceOptions) {
 		this.config = { ...DEFAULT_GIT_INTELLIGENCE_CONFIG, ...options.config };
-		this.cwd = options.cwd;
-		this.runGit = options.runGit;
-		this.now = options.now ?? (() => Date.now());
-		this.maxCount = options.maxCount;
-		this.buildState = this.config.enabled ? "not-started" : "disabled";
+		this.#cwd = options.cwd;
+		this.#runGit = options.runGit;
+		this.#now = options.now ?? (() => Date.now());
+		this.#maxCount = options.maxCount;
+		this.#buildState = this.config.enabled ? "not-started" : "disabled";
 	}
 
 	get state(): BuildState {
-		return this.buildState;
+		return this.#buildState;
 	}
 
 	get isReady(): boolean {
-		return this.buildState === "ready" && this.analysis !== null;
+		return this.#buildState === "ready" && this.#analysis !== null;
 	}
 
 	/** Build analysis. Idempotent; concurrent callers share one build. Fail-open. */
 	async warm(): Promise<void> {
 		if (!this.config.enabled) {
-			this.buildState = "disabled";
+			this.#buildState = "disabled";
 			return;
 		}
-		if (this.warming) return this.warming;
-		this.buildState = "building";
-		this.warming = (async () => {
+		if (this.#warming) return this.#warming;
+		this.#buildState = "building";
+		this.#warming = (async () => {
 			try {
 				const commits = await readHistory({
-					cwd: this.cwd,
-					runGit: this.runGit,
+					cwd: this.#cwd,
+					runGit: this.#runGit,
 					findCopies: this.config.coChange.findCopies,
-					maxCount: this.maxCount,
+					maxCount: this.#maxCount,
 				});
-				this.analysis = analyze(commits, this.config, this.now());
-				this.buildState = "ready";
+				this.#analysis = analyze(commits, this.config, this.#now());
+				this.#buildState = "ready";
 			} catch {
-				this.analysis = null;
-				this.buildState = "failed";
+				this.#analysis = null;
+				this.#buildState = "failed";
 			} finally {
-				this.warming = null;
+				this.#warming = null;
 			}
 		})();
-		return this.warming;
+		return this.#warming;
 	}
 
 	markStale(): void {
-		if (this.buildState === "ready") this.buildState = "stale";
+		if (this.#buildState === "ready") this.#buildState = "stale";
 	}
 
 	/** Fail-open counters for host snapshots; 0 when disabled, cold, or failed. */
 	coChangePairCount(): number {
-		return this.analysis?.coChange.totalEdges ?? 0;
+		return this.#analysis?.coChange.totalEdges ?? 0;
 	}
 
 	indexedCommitCount(): number {
-		return this.analysis?.quality.commitCount ?? 0;
+		return this.#analysis?.quality.commitCount ?? 0;
 	}
 
 	pathIdentityCount(): number {
-		return this.analysis?.index.identities.size ?? 0;
+		return this.#analysis?.index.identities.size ?? 0;
 	}
 
 	/** Full decision trace for a target path (null when unavailable). */
 	adviseTrace(targetPath: string, workingTree?: WorkingTreeActivity): AdvisoryDecisionTrace | null {
-		if (!this.isReady || !this.analysis) return null;
+		if (!this.isReady || !this.#analysis) return null;
 		try {
 			return evaluateAdvisory({
 				targetPath,
-				analysis: this.analysis,
+				analysis: this.#analysis,
 				config: this.config,
 				workingTree,
-				now: this.now(),
+				now: this.#now(),
 			});
 		} catch {
 			return null;
