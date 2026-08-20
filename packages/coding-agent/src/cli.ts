@@ -15,6 +15,7 @@ try {
  * lightweight CLI runner from pi-utils.
  */
 import { parentPort } from "node:worker_threads";
+import { LOOP_SENTINEL_WORKER_ARG } from "@oh-my-pi/pi-tui/loop-sentinel-protocol";
 import type { CliConfig, CommandMetadata } from "@oh-my-pi/pi-utils/cli";
 import {
 	APP_NAME,
@@ -96,6 +97,7 @@ async function runSmokeTest(): Promise<void> {
 	const { smokeTestDaemonBroker } = await import("./launch/client");
 	const { smokeTestLspMux } = await import("./lsp/mux/daemon");
 	const { smokeTestTerminalOutputWorker } = await import("./launch/terminal-output-worker-client");
+	const { smokeTestLoopSentinelWorker } = await import("@oh-my-pi/pi-tui/loop-sentinel");
 	await smokeTestSyncWorker();
 
 	const statsServer = await startServer(0);
@@ -119,6 +121,7 @@ async function runSmokeTest(): Promise<void> {
 	await smokeTestDaemonBroker();
 	await smokeTestLspMux();
 	await smokeTestTerminalOutputWorker();
+	await smokeTestLoopSentinelWorker();
 	process.stdout.write("smoke-test: ok\n");
 }
 
@@ -203,6 +206,11 @@ async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 	if (arg === MNEMOPI_EMBED_WORKER_ARG) {
 		const { startMnemopiEmbedWorker } = await import("./mnemopi/embed-worker");
 		await runIpcSubprocessWorker(startMnemopiEmbedWorker);
+		return true;
+	}
+	if (arg === LOOP_SENTINEL_WORKER_ARG) {
+		if (parentPort) installWorkerInbox(parentPort);
+		await import("@oh-my-pi/pi-tui/loop-sentinel-worker");
 		return true;
 	}
 	if (arg === TERMINAL_OUTPUT_WORKER_ARG) {
