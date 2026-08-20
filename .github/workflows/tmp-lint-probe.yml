@@ -31,3 +31,4 @@ jobs:
           git add lint-probe-output.txt
           git commit -m "chore: lint probe output (temporary) [skip ci]"
           git push
+      # probe v2
