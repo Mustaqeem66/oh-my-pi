@@ -342,7 +342,7 @@ export function planAdaptiveFidelityState(
  * can be expanded on demand.
  */
 export function currentFidelityState(state: AdaptiveFidelityState): CurrentFidelityState {
-	if (!state || state.enabled !== true) {
+	if (state?.enabled !== true) {
 		return { carried: [], expandHandles: [], evictedHandles: [], used: 0, budget: 0 };
 	}
 	return {
@@ -356,7 +356,7 @@ export function currentFidelityState(state: AdaptiveFidelityState): CurrentFidel
 
 /** A short deterministic one-line summary (for logs/telemetry). */
 export function summarizeFidelityState(state: AdaptiveFidelityState): string {
-	if (!state || state.enabled !== true) return "fidelity: disabled";
+	if (state?.enabled !== true) return "fidelity: disabled";
 	const parts = [
 		`full=${state.full.length}`,
 		`summarized=${state.summarized.length}`,
