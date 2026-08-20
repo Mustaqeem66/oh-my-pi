@@ -93,10 +93,7 @@ export class EventJournal {
 	append(input: JournalEventInput): JournalEvent {
 		this.#db.exec("BEGIN IMMEDIATE;");
 		try {
-			const row = this.#db.query("SELECT MAX(seq) AS seq FROM event_index").get() as Record<
-				string,
-				unknown
-			> | null;
+			const row = this.#db.query("SELECT MAX(seq) AS seq FROM event_index").get() as Record<string, unknown> | null;
 			const seq = (typeof row?.seq === "number" ? row.seq : 0) + 1;
 			const event: JournalEvent = {
 				...input,
