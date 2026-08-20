@@ -1,10 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-	popLoopPhase,
-	pushLoopPhase,
-	setLoopPhaseMirror,
-	takeRecentLoopPhase,
-} from "@oh-my-pi/pi-utils/loop-phase";
+import { popLoopPhase, pushLoopPhase, setLoopPhaseMirror, takeRecentLoopPhase } from "@oh-my-pi/pi-utils/loop-phase";
 import {
 	createSentinelJudge,
 	createSentinelViews,
