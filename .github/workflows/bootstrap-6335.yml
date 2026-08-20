@@ -1,0 +1,40 @@
+name: bootstrap-6335
+
+# One-shot: applies the ModelsRoute.tsx gap-fill patch for #6335, verifies the
+# edits landed (fail-closed), then removes this workflow and its script so the
+# PR diff contains only the real change.
+
+on:
+  push:
+    branches:
+      - fix/6335-preference-chart-gapfill
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    if: ${{ !contains(github.event.head_commit.message, '[bootstrap-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply anchored edits
+        run: python3 .github/bootstrap-6335.py
+
+      - name: Verify edits landed (fail-closed)
+        run: |
+          set -e
+          grep -q 'export function buildModelPreferenceSeries(' packages/stats/src/client/routes/ModelsRoute.tsx
+          grep -q 'buildModelPreferenceSeries(modelSeries, timeRange)' packages/stats/src/client/routes/ModelsRoute.tsx
+          grep -q 'const { bucketMs, bucketCount } = rangeMeta(range);' packages/stats/src/client/routes/ModelsRoute.tsx
+          echo 'all three edits verified'
+
+      - name: Commit patch and remove bootstrap
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -q .github/bootstrap-6335.py .github/workflows/bootstrap-6335.yml
+          git add packages/stats/src/client/routes/ModelsRoute.tsx
+          git commit -m 'fix(stats): uniform time axis for the Model Preference chart (#6335) [bootstrap-applied]'
+          git push
