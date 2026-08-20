@@ -169,7 +169,7 @@ export class GuardianSessionParticipant implements SessionMemoryParticipant {
 	 * deadline, so a guardian that never settles costs the turn nothing.
 	 */
 	async #settle(): Promise<void> {
-		await new Promise<void>(resolve => setTimeout(resolve, 0));
+		await Bun.sleep(0);
 		await this.#injections.whenIdle();
 	}
 

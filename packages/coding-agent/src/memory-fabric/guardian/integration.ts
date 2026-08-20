@@ -41,6 +41,7 @@
  * silently omits the record that mattered.
  */
 
+import { prompt } from "@oh-my-pi/pi-utils";
 import type {
 	GuardianAction,
 	GuardianConfig,
@@ -51,6 +52,8 @@ import type {
 } from "./decision-engine";
 import { GuardianDecisionEngine } from "./decision-engine";
 import type { QueryIntent, SessionEvent, SessionEventBus } from "./event-bus";
+import guardianInjectionInfoMd from "./prompts/guardian-injection-info.md" with { type: "text" };
+import guardianInjectionWarningMd from "./prompts/guardian-injection-warning.md" with { type: "text" };
 
 /** Where a session sits, for scoping retrieval. */
 export interface GuardianScope {
@@ -176,13 +179,12 @@ export function createRetrievalQuery(
  *
  * A warning is marked as such in the text rather than delivered through a
  * separate channel, because the model reads one stream and an out-of-band
- * warning it never sees is not a warning.
+ * warning it never sees is not a warning. The framing lives in static `.md`
+ * prompt templates; the composed context is passed in as template data.
  */
 export function formatGuardianInjection(pending: GuardianPendingInjection): string {
-	const header = pending.warning
-		? "[memory guardian] The following recorded context appears to conflict with the current course of action."
-		: "[memory guardian] Recorded context that may be relevant to this turn.";
-	return `${header}\n\n${pending.context.text}`;
+	const template = pending.warning ? guardianInjectionWarningMd : guardianInjectionInfoMd;
+	return prompt.render(template, { context: pending.context.text });
 }
 
 /**
