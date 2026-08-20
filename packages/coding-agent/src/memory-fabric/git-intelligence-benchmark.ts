@@ -106,7 +106,11 @@ export function runHeldOutBenchmark(
 			...options.policy,
 		};
 
-		const source = Array.isArray(commits) ? commits.filter(c => c && typeof c === "object") : [];
+		// Annotated: `Array.isArray` narrows the readonly parameter to `any[]`,
+		// which would strip contextual typing from every callback downstream.
+		const source: readonly GitCommitRecord[] = Array.isArray(commits)
+			? commits.filter(c => c && typeof c === "object")
+			: [];
 		const sorted = [...source].sort((a, b) => commitEpoch(a) - commitEpoch(b));
 
 		const samples: HeldOutSample[] = [];
