@@ -150,26 +150,26 @@ export function createEvidenceSink(
 
 /** In-memory, append-only evidence store for tests and evidence collection. */
 export class InMemoryEvidenceStore implements EvidenceStorePort {
-	private readonly records: RedactedEvidenceRecord[] = [];
+	readonly #records: RedactedEvidenceRecord[] = [];
 
 	put(record: RedactedEvidenceRecord): void {
-		this.records.push(record);
+		this.#records.push(record);
 	}
 
 	all(): readonly RedactedEvidenceRecord[] {
-		return this.records;
+		return this.#records;
 	}
 
 	get(evidenceId: string): RedactedEvidenceRecord | undefined {
-		return this.records.find(r => r.evidenceId === evidenceId);
+		return this.#records.find(r => r.evidenceId === evidenceId);
 	}
 
 	forProject(projectId: string): RedactedEvidenceRecord[] {
-		return this.records.filter(r => r.projectId === projectId);
+		return this.#records.filter(r => r.projectId === projectId);
 	}
 
 	get size(): number {
-		return this.records.length;
+		return this.#records.length;
 	}
 }
 
