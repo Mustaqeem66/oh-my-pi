@@ -60,7 +60,8 @@ describe("distill", () => {
 
 	it("redacts before archiving evidence", () => {
 		const store = new InMemoryEvidenceStore();
-		const secret = "token ****** oops";
+		// Built at runtime so the repo never contains a token-shaped literal.
+		const secret = `token ghp_${"a".repeat(36)} oops`;
 		const result = distill(
 			{ content: secret, projectId: "p1" },
 			{ evidenceSink: createEvidenceSink(store), now: NOW },
