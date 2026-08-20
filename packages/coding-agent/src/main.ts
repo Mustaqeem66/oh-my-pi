@@ -1375,6 +1375,7 @@ export async function runRootCommand(
 		settingsInstance.get("colorBlindMode"),
 		settingsInstance.get("theme.dark"),
 		settingsInstance.get("theme.light"),
+		settingsInstance.get("chat.transparent"),
 	);
 
 	let scopedModels = await logger.time(
