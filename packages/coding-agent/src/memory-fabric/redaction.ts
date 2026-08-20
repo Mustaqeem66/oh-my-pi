@@ -165,17 +165,21 @@ export function redactObject(obj: Record<string, unknown>): Record<string, unkno
  * there is deliberately no module-level singleton.
  */
 export class SecretRedactor {
-	private static readonly MAX_CACHE_ENTRIES = 1000;
-	private readonly cache = new Map<string, RedactionResult>();
+	static readonly #MAX_CACHE_ENTRIES = 1000;
+	readonly #cache = new Map<string, RedactionResult>();
 
 	redact(text: string): RedactionResult {
-		const key = this.hash(text);
-		const cached = this.cache.get(key);
+		// The cache is keyed by the full input. A digest key is not safe here:
+		// the previous 32-bit rolling hash collided deterministically (e.g.
+		// "Aa" vs "BB"), returning one string's RedactionResult for another —
+		// corruption, not a cache miss. The map is size-bounded, so full-text
+		// keys cannot grow without limit.
+		const cached = this.#cache.get(text);
 		if (cached) return cached;
 
 		const result = redactText(text);
-		if (this.cache.size < SecretRedactor.MAX_CACHE_ENTRIES) {
-			this.cache.set(key, result);
+		if (this.#cache.size < SecretRedactor.#MAX_CACHE_ENTRIES) {
+			this.#cache.set(text, result);
 		}
 		return result;
 	}
@@ -185,15 +189,6 @@ export class SecretRedactor {
 	}
 
 	clearCache(): void {
-		this.cache.clear();
-	}
-
-	private hash(text: string): string {
-		let hash = 0;
-		for (let i = 0; i < text.length; i++) {
-			hash = (hash << 5) - hash + text.charCodeAt(i);
-			hash |= 0;
-		}
-		return `${text.length}:${Math.abs(hash).toString(36)}`;
+		this.#cache.clear();
 	}
 }

@@ -112,4 +112,33 @@ describe("EventJournal", () => {
 		expect(next.seq).toBe(2);
 		expect(journal.read(next.seq)?.type).toBe("b");
 	});
+
+	it("allocates distinct seqs across two live instances on the same journal", () => {
+		const second = new EventJournal({ directory: dir, scope: SCOPE });
+		try {
+			for (let round = 0; round < 5; round += 1) {
+				journal.append({ type: "ping", payload: { round } });
+				second.append({ type: "pong", payload: { round } });
+			}
+
+			const seqs = journal.query({ limit: 20 }).map(event => event.seq);
+			expect(seqs).toEqual([10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
+
+			const lines = fs.readFileSync(path.join(dir, "proj-a_journal.jsonl"), "utf8").split("\n").filter(Boolean);
+			expect(lines).toHaveLength(10);
+		} finally {
+			second.close();
+		}
+	});
+
+	it("leaves no orphan line in the journal when an append fails", () => {
+		journal.append({ type: "a", payload: {} });
+		journal.close();
+
+		expect(() => journal.append({ type: "b", payload: {} })).toThrow();
+
+		const lines = fs.readFileSync(path.join(dir, "proj-a_journal.jsonl"), "utf8").split("\n").filter(Boolean);
+		expect(lines).toHaveLength(1);
+		journal = new EventJournal({ directory: dir, scope: SCOPE });
+	});
 });

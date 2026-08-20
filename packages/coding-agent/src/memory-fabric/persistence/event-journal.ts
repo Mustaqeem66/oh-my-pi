@@ -20,9 +20,13 @@
  * likewise computes each offset from its predecessor's end rather than from
  * whatever the file size happens to be mid-recovery.
  *
- * Sequence numbers are owned by this class, initialised from `MAX(seq)` in
- * the index after recovery. Letting SQLite `AUTOINCREMENT` race an in-memory
- * counter is how the same seq gets issued twice.
+ * Sequence numbers are allocated from `MAX(seq)` inside the append's own
+ * `BEGIN IMMEDIATE` transaction, never from an in-memory counter: two
+ * instances of the same journal (two sessions on one project) would cache
+ * the same counter and the loser's line would land in the JSONL file only
+ * to have its index insert rejected — an unindexed duplicate in the
+ * canonical log. Under the write lock the second appender simply observes
+ * the first appender's seq and takes the next one.
  */
 
 import { Database } from "bun:sqlite";
@@ -61,9 +65,6 @@ const SCHEMA = `
 export class EventJournal {
 	readonly #db: Database;
 	readonly #journalPath: string;
-	#seq = 0;
-	/** Byte length of the journal file; the next append lands at this offset. */
-	#size = 0;
 
 	constructor(options: EventJournalOptions) {
 		fs.mkdirSync(options.directory, { recursive: true });
@@ -78,30 +79,54 @@ export class EventJournal {
 		this.recover();
 	}
 
-	/** Append one event; returns it with its assigned seq and timestamp. */
+	/**
+	 * Append one event; returns it with its assigned seq and timestamp.
+	 *
+	 * The whole append runs under `BEGIN IMMEDIATE`: the seq is derived from
+	 * `MAX(seq)` while the write lock is held, the index row is inserted
+	 * *before* the JSONL line is written, and only then does the transaction
+	 * commit. A failed insert therefore rolls back without ever touching the
+	 * journal file, and a concurrent instance blocks on the lock and then
+	 * sees this append's seq — the in-memory counter race that used to leave
+	 * an unindexed duplicate line cannot occur.
+	 */
 	append(input: JournalEventInput): JournalEvent {
-		const event: JournalEvent = {
-			...input,
-			seq: this.#seq + 1,
-			timestamp: new Date().toISOString(),
-		};
-		const line = `${JSON.stringify(event)}\n`;
-		const length = Buffer.byteLength(line, "utf8");
-		// The event's offset is where the file ends *now* — before the append.
-		const offset = this.#size;
+		this.#db.exec("BEGIN IMMEDIATE;");
+		try {
+			const row = this.#db.query("SELECT MAX(seq) AS seq FROM event_index").get() as Record<
+				string,
+				unknown
+			> | null;
+			const seq = (typeof row?.seq === "number" ? row.seq : 0) + 1;
+			const event: JournalEvent = {
+				...input,
+				seq,
+				timestamp: new Date().toISOString(),
+			};
+			const line = `${JSON.stringify(event)}\n`;
+			const length = Buffer.byteLength(line, "utf8");
+			// The event's offset is the *actual* file size under the lock — the
+			// cached size lags when another instance has appended in between.
+			const offset = fs.statSync(this.#journalPath).size;
 
-		fs.appendFileSync(this.#journalPath, line, "utf8");
-		this.#size = offset + length;
-		this.#seq = event.seq;
-
-		this.#db
-			.query(`
+			this.#db
+				.query(`
 			INSERT INTO event_index (seq, type, record_id, timestamp, offset, length)
 			VALUES (?, ?, ?, ?, ?, ?)
 		`)
-			.run(event.seq, event.type, event.recordId ?? null, event.timestamp, offset, length);
+				.run(seq, event.type, event.recordId ?? null, event.timestamp, offset, length);
 
-		return event;
+			fs.appendFileSync(this.#journalPath, line, "utf8");
+			this.#db.exec("COMMIT;");
+			return event;
+		} catch (error) {
+			try {
+				this.#db.exec("ROLLBACK;");
+			} catch {
+				// The transaction may already be gone; the original error wins.
+			}
+			throw error;
+		}
 	}
 
 	/** Retract a record by appending a tombstone; the history itself stays. */
@@ -158,14 +183,13 @@ export class EventJournal {
 	 * @returns how many events were added to the index
 	 */
 	recover(): number {
-		const row = this.#db
-			.query("SELECT MAX(offset + length) AS tail, MAX(seq) AS seq FROM event_index")
-			.get() as Record<string, unknown> | null;
+		const row = this.#db.query("SELECT MAX(offset + length) AS tail FROM event_index").get() as Record<
+			string,
+			unknown
+		> | null;
 		const indexedEnd = typeof row?.tail === "number" ? row.tail : 0;
-		this.#seq = typeof row?.seq === "number" ? row.seq : 0;
 
 		const buffer = fs.readFileSync(this.#journalPath);
-		this.#size = buffer.byteLength;
 		if (indexedEnd >= buffer.byteLength) return 0;
 
 		let recovered = 0;
@@ -181,7 +205,6 @@ export class EventJournal {
 			const event = parseEvent(buffer.subarray(offset, newline).toString("utf8"));
 			if (event) {
 				insert.run(event.seq, event.type, event.recordId ?? null, event.timestamp, offset, length);
-				if (event.seq > this.#seq) this.#seq = event.seq;
 				recovered += 1;
 			}
 			offset += length;
