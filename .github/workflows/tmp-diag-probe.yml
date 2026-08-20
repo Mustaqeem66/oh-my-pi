@@ -1,0 +1,54 @@
+name: tmp-diag-probe
+on:
+  push:
+    branches: [fix/5372-loop-wedge-sentinel]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-system-deps
+      - uses: ./.github/actions/bun-install
+      - name: Fetch release native addons (npm)
+        shell: bash
+        run: |
+          set -euo pipefail
+          tarball="$(npm view @oh-my-pi/pi-natives-linux-x64@latest dist.tarball)"
+          curl -fsSL --retry 3 "$tarball" | tar -xz -C "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/omp-native-artifacts/natives-linux-x64-baseline" "$RUNNER_TEMP/omp-native-artifacts/natives-linux-x64-modern"
+          cp "$RUNNER_TEMP/package/pi_natives.linux-x64-baseline.node" "$RUNNER_TEMP/omp-native-artifacts/natives-linux-x64-baseline/"
+          cp "$RUNNER_TEMP/package/pi_natives.linux-x64-modern.node" "$RUNNER_TEMP/omp-native-artifacts/natives-linux-x64-modern/"
+          bun scripts/bazel-natives.ts linux-x64-baseline linux-x64-modern \
+            --source "$RUNNER_TEMP/omp-native-artifacts" \
+            --dest packages/natives/native
+      - name: Run diagnostics
+        shell: bash
+        run: |
+          set +e
+          {
+            echo "===== 1. ci:check:full ====="
+            bun run ci:check:full 2>&1 | tail -c 20000
+            echo ""
+            echo "===== exit: $? ====="
+            echo "===== 2. ci:test:smoke ====="
+            bun run ci:test:smoke 2>&1 | tail -c 20000
+            echo ""
+            echo "===== 3. ci:test:coding-agent:native ====="
+            bun run ci:test:coding-agent:native 2>&1 | tail -c 25000
+            echo ""
+            echo "===== 4. ci:test:install-methods ====="
+            OMP_INSTALL_TEST_SKIP_NATIVE_BUILD=1 bun run ci:test:install-methods 2>&1 | tail -c 20000
+          } > diag-probe-output.txt 2>&1
+          true
+      - name: Commit output and self-delete
+        shell: bash
+        run: |
+          git config user.name "diag-probe"
+          git config user.email "probe@local"
+          git rm -q .github/workflows/tmp-diag-probe.yml
+          git add diag-probe-output.txt
+          git commit -m "chore: diag probe output [skip ci]"
+          git push
