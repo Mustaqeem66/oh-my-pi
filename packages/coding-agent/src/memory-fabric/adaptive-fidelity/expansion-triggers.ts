@@ -19,8 +19,7 @@
  * Deterministic — no clocks, no randomness. Imports only sibling types.
  */
 
-import { DEFAULT_ADAPTIVE_CONFIG } from "./adaptive-budget";
-import type { AdaptiveBudgetConfig, ContextExpansionRequest } from "./types";
+import type { ContextExpansionRequest } from "./types";
 
 /** Everything the trigger ladder inspects about the current turn. */
 export interface ExpansionTurnState {
@@ -61,12 +60,6 @@ export interface SimpleExpansionState {
  * Returns a proposal (`ContextExpansionRequest`) or null — never acts.
  */
 export class AutomatedExpansionTrigger {
-	private config: AdaptiveBudgetConfig;
-
-	constructor(config?: Partial<AdaptiveBudgetConfig>) {
-		this.config = { ...DEFAULT_ADAPTIVE_CONFIG, ...config };
-	}
-
 	/**
 	 * Inspect the current turn state and return an expansion request if
 	 * warranted, null otherwise. First matching rule wins.
@@ -287,47 +280,50 @@ export function computeHarmRate(falseMemoryInfluenced: number, totalInfluenced: 
  * precision; negative weights punish waste and harm) plus a per-candidate
  * utility used for ranking. Pure and deterministic.
  */
-export class BudgetUtilityCalculator {
-	static calculateUtility(metrics: {
-		taskSuccess: number;
-		validationSuccess: number;
-		memoryPrecision: number;
-		knownFailureAvoidance: number;
-		resumeQuality: number;
-		provenanceCoverage: number;
-		irrelevantContextRate: number;
-		unnecessaryToolRate: number;
-		latencyPenalty: number;
-		tokenCostPenalty: number;
-		userCorrectionRate: number;
-		falseMemoryInfluence: number;
-	}): number {
-		return (
-			0.3 * metrics.taskSuccess +
-			0.15 * metrics.validationSuccess +
-			0.12 * metrics.memoryPrecision +
-			0.1 * metrics.knownFailureAvoidance +
-			0.08 * metrics.resumeQuality +
-			0.05 * metrics.provenanceCoverage +
-			-0.06 * metrics.irrelevantContextRate +
-			-0.04 * metrics.unnecessaryToolRate +
-			-0.04 * metrics.latencyPenalty +
-			-0.03 * metrics.tokenCostPenalty +
-			-0.02 * metrics.userCorrectionRate +
-			-0.06 * metrics.falseMemoryInfluence
-		);
-	}
-
-	static calculateCandidateUtility(record: {
-		confidence?: number;
-		importance?: number;
-		verification?: string;
-	}): number {
-		const conf = record.confidence ?? 0.5;
-		const imp = record.importance ?? 0.5;
-		let utility = conf * 0.6 + imp * 0.4;
-		if (record.verification === "user-confirmed") utility += 0.2;
-		if (record.verification === "contradicted") utility -= 0.5;
-		return Math.max(0, Math.min(1, utility));
-	}
+export function calculateUtility(metrics: {
+	taskSuccess: number;
+	validationSuccess: number;
+	memoryPrecision: number;
+	knownFailureAvoidance: number;
+	resumeQuality: number;
+	provenanceCoverage: number;
+	irrelevantContextRate: number;
+	unnecessaryToolRate: number;
+	latencyPenalty: number;
+	tokenCostPenalty: number;
+	userCorrectionRate: number;
+	falseMemoryInfluence: number;
+}): number {
+	return (
+		0.3 * metrics.taskSuccess +
+		0.15 * metrics.validationSuccess +
+		0.12 * metrics.memoryPrecision +
+		0.1 * metrics.knownFailureAvoidance +
+		0.08 * metrics.resumeQuality +
+		0.05 * metrics.provenanceCoverage +
+		-0.06 * metrics.irrelevantContextRate +
+		-0.04 * metrics.unnecessaryToolRate +
+		-0.04 * metrics.latencyPenalty +
+		-0.03 * metrics.tokenCostPenalty +
+		-0.02 * metrics.userCorrectionRate +
+		-0.06 * metrics.falseMemoryInfluence
+	);
 }
+
+export function calculateCandidateUtility(record: {
+	confidence?: number;
+	importance?: number;
+	verification?: string;
+}): number {
+	const conf = record.confidence ?? 0.5;
+	const imp = record.importance ?? 0.5;
+	let utility = conf * 0.6 + imp * 0.4;
+	if (record.verification === "user-confirmed") utility += 0.2;
+	if (record.verification === "contradicted") utility -= 0.5;
+	return Math.max(0, Math.min(1, utility));
+}
+
+export const BudgetUtilityCalculator = {
+	calculateUtility,
+	calculateCandidateUtility,
+};
