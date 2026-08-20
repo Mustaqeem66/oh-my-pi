@@ -158,6 +158,6 @@ export function buildAdaptiveFidelityView(
 
 /** A short deterministic one-line summary (for logs/telemetry). */
 export function summarizeAdaptiveFidelityView(view: AdaptiveFidelityView): string {
-	if (!view || view.enabled !== true) return "adaptive-fidelity: disabled";
+	if (view?.enabled !== true) return "adaptive-fidelity: disabled";
 	return `adaptive-fidelity: stages=[${view.stages.join(",")}]`;
 }
