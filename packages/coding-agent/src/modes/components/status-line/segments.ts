@@ -467,7 +467,7 @@ const costSegment: StatusLineSegment = {
 			billingParts.push(formatSpend(cost, usingSubscription, theme));
 		} else if (usingSubscription) {
 			billingParts.push(
-				theme.getSymbolPreset() === "nerd" && theme.icon.subscription ? theme.icon.subscription : "(sub)",
+				theme.getSymbolPreset() === "nerd" && theme.icon.subscription ? theme.icon.subscription : "(oauth)",
 			);
 		}
 		if (normalizedPremiumRequests) billingParts.push(`★ ${formatNumber(normalizedPremiumRequests)}`);
