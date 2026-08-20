@@ -68,110 +68,113 @@ function unit(value: unknown): number {
  * is a recovery/architecture task, not a trivial one — length alone must
  * never override an explicit intent keyword.
  */
-export class TaskClassifier {
-	static classifyCategory(taskPrompt: string): ContextNeedCategory {
-		const text = (taskPrompt ?? "").toLowerCase();
-		if (
-			text.includes("restore") ||
-			text.includes("recover") ||
-			text.includes("rollback") ||
-			text.includes("checkpoint")
-		) {
-			return "recovery";
-		}
-		if (
-			text.includes("architect") ||
-			text.includes("design") ||
-			text.includes("refactor") ||
-			text.includes("migration")
-		) {
-			return "architecture";
-		}
-		if (
-			text.includes("fix") ||
-			text.includes("bug") ||
-			text.includes("error") ||
-			text.includes("fail") ||
-			text.includes("crash")
-		) {
-			return "debugging";
-		}
-		if (
-			text.includes("across repo") ||
-			text.includes("all files") ||
-			text.includes("global search") ||
-			text.includes("full codebase")
-		) {
-			return "repository-wide";
-		}
-		if (text.length < 30) return "trivial";
-		return "normal";
+export function classifyCategory(taskPrompt: string): ContextNeedCategory {
+	const text = (taskPrompt ?? "").toLowerCase();
+	if (
+		text.includes("restore") ||
+		text.includes("recover") ||
+		text.includes("rollback") ||
+		text.includes("checkpoint")
+	) {
+		return "recovery";
 	}
+	if (
+		text.includes("architect") ||
+		text.includes("design") ||
+		text.includes("refactor") ||
+		text.includes("migration")
+	) {
+		return "architecture";
+	}
+	if (
+		text.includes("fix") ||
+		text.includes("bug") ||
+		text.includes("error") ||
+		text.includes("fail") ||
+		text.includes("crash")
+	) {
+		return "debugging";
+	}
+	if (
+		text.includes("across repo") ||
+		text.includes("all files") ||
+		text.includes("global search") ||
+		text.includes("full codebase")
+	) {
+		return "repository-wide";
+	}
+	if (text.length < 30) return "trivial";
+	return "normal";
+}
 
-	static generateInformationNeeds(category: ContextNeedCategory, _prompt: string): InformationNeed[] {
-		const needs: InformationNeed[] = [
+export function generateInformationNeeds(category: ContextNeedCategory, _prompt: string): InformationNeed[] {
+	const needs: InformationNeed[] = [
+		{
+			id: "need_task_state",
+			category,
+			topic: "active task state and objective",
+			required: true,
+			priority: 1.0,
+			minVerification: "observed",
+		},
+	];
+
+	if (category === "debugging") {
+		needs.push(
 			{
-				id: "need_task_state",
+				id: "need_error_logs",
 				category,
-				topic: "active task state and objective",
+				topic: "error messages and stack traces",
 				required: true,
-				priority: 1.0,
+				priority: 0.9,
 				minVerification: "observed",
 			},
-		];
-
-		if (category === "debugging") {
-			needs.push(
-				{
-					id: "need_error_logs",
-					category,
-					topic: "error messages and stack traces",
-					required: true,
-					priority: 0.9,
-					minVerification: "observed",
-				},
-				{
-					id: "need_recent_edits",
-					category,
-					topic: "recently modified code files",
-					required: false,
-					priority: 0.7,
-					minVerification: "observed",
-				},
-			);
-		} else if (category === "architecture") {
-			needs.push(
-				{
-					id: "need_decisions",
-					category,
-					topic: "architectural decisions and contracts",
-					required: true,
-					priority: 0.95,
-					minVerification: "user-confirmed",
-				},
-				{
-					id: "need_code_graph",
-					category,
-					topic: "symbol dependencies and class relationships",
-					required: false,
-					priority: 0.8,
-					minVerification: "observed",
-				},
-			);
-		} else if (category === "recovery") {
-			needs.push({
-				id: "need_last_checkpoint",
+			{
+				id: "need_recent_edits",
 				category,
-				topic: "last verified checkpoint state",
-				required: true,
-				priority: 1.0,
+				topic: "recently modified code files",
+				required: false,
+				priority: 0.7,
 				minVerification: "observed",
-			});
-		}
-
-		return needs;
+			},
+		);
+	} else if (category === "architecture") {
+		needs.push(
+			{
+				id: "need_decisions",
+				category,
+				topic: "architectural decisions and contracts",
+				required: true,
+				priority: 0.95,
+				minVerification: "user-confirmed",
+			},
+			{
+				id: "need_code_graph",
+				category,
+				topic: "symbol dependencies and class relationships",
+				required: false,
+				priority: 0.8,
+				minVerification: "observed",
+			},
+		);
+	} else if (category === "recovery") {
+		needs.push({
+			id: "need_last_checkpoint",
+			category,
+			topic: "last verified checkpoint state",
+			required: true,
+			priority: 1.0,
+			minVerification: "observed",
+		});
 	}
+
+	return needs;
 }
+
+export const TaskClassifier = {
+	classifyCategory,
+	generateInformationNeeds,
+};
 
 /**
  * Dynamic Adaptive Budget Calculator.
