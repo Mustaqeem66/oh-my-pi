@@ -174,40 +174,40 @@ const RATE_WINDOW_MS = 60000;
  * and tests control time; only permitted writes consume rate-window slots.
  */
 export class QuotaEnforcer {
-	private readonly config: QuotaConfig;
-	private readonly now: () => number;
-	private writeTimestamps: number[] = [];
+	readonly #config: QuotaConfig;
+	readonly #now: () => number;
+	#writeTimestamps: number[] = [];
 
 	constructor(config: Partial<QuotaConfig> = {}, now: () => number = Date.now) {
-		this.config = { ...DEFAULT_QUOTA_CONFIG, ...config };
-		this.now = now;
+		this.#config = { ...DEFAULT_QUOTA_CONFIG, ...config };
+		this.#now = now;
 	}
 
 	/** Check whether one more record write is permitted right now. */
 	checkQuota(currentRecordCount: number, estimatedStorageBytes: number): QuotaDecision {
-		const now = this.now();
-		this.writeTimestamps = this.writeTimestamps.filter(t => now - t < RATE_WINDOW_MS);
+		const now = this.#now();
+		this.#writeTimestamps = this.#writeTimestamps.filter(t => now - t < RATE_WINDOW_MS);
 
-		if (this.writeTimestamps.length >= this.config.maxWritesPerMinute) {
+		if (this.#writeTimestamps.length >= this.#config.maxWritesPerMinute) {
 			return {
 				allowed: false,
-				reason: `Rate limit exceeded: max ${this.config.maxWritesPerMinute} writes per minute`,
+				reason: `Rate limit exceeded: max ${this.#config.maxWritesPerMinute} writes per minute`,
 			};
 		}
-		if (currentRecordCount >= this.config.maxRecordsPerProject) {
+		if (currentRecordCount >= this.#config.maxRecordsPerProject) {
 			return {
 				allowed: false,
-				reason: `Record count quota exceeded: max ${this.config.maxRecordsPerProject} records per project`,
+				reason: `Record count quota exceeded: max ${this.#config.maxRecordsPerProject} records per project`,
 			};
 		}
-		if (estimatedStorageBytes >= this.config.maxSizeBytesPerProject) {
+		if (estimatedStorageBytes >= this.#config.maxSizeBytesPerProject) {
 			return {
 				allowed: false,
-				reason: `Storage quota exceeded: max ${this.config.maxSizeBytesPerProject} bytes per project`,
+				reason: `Storage quota exceeded: max ${this.#config.maxSizeBytesPerProject} bytes per project`,
 			};
 		}
 
-		this.writeTimestamps.push(now);
+		this.#writeTimestamps.push(now);
 		return { allowed: true };
 	}
 }

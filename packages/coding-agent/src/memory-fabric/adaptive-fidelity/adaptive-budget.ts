@@ -182,10 +182,10 @@ export class TaskClassifier {
  * at `minimumTokens` (default 500). Signals are clamped to [0, 1] before use.
  */
 export class AdaptiveBudgetCalculator {
-	private config: AdaptiveBudgetConfig;
+	#config: AdaptiveBudgetConfig;
 
 	constructor(config: Partial<AdaptiveBudgetConfig> = {}) {
-		this.config = { ...DEFAULT_ADAPTIVE_CONFIG, ...config };
+		this.#config = { ...DEFAULT_ADAPTIVE_CONFIG, ...config };
 	}
 
 	calculateBudget(
@@ -193,27 +193,27 @@ export class AdaptiveBudgetCalculator {
 		availableModelContextWindow = 128000,
 		signals?: BudgetSignals,
 	): number {
-		if (this.config.fallback700Tokens) return 700;
+		if (this.#config.fallback700Tokens) return 700;
 
 		let baseBudget: number;
 		switch (category) {
 			case "trivial":
-				baseBudget = this.config.initialTokenBudget;
+				baseBudget = this.#config.initialTokenBudget;
 				break;
 			case "debugging":
-				baseBudget = this.config.debuggingTokenBudget;
+				baseBudget = this.#config.debuggingTokenBudget;
 				break;
 			case "architecture":
-				baseBudget = this.config.architectureTokenBudget;
+				baseBudget = this.#config.architectureTokenBudget;
 				break;
 			case "recovery":
-				baseBudget = this.config.recoveryTokenBudget;
+				baseBudget = this.#config.recoveryTokenBudget;
 				break;
 			case "repository-wide":
-				baseBudget = this.config.repoWideTokenBudget;
+				baseBudget = this.#config.repoWideTokenBudget;
 				break;
 			default:
-				baseBudget = this.config.normalTokenBudget;
+				baseBudget = this.#config.normalTokenBudget;
 				break;
 		}
 
@@ -222,11 +222,11 @@ export class AdaptiveBudgetCalculator {
 		if (signals) {
 			const complexity = unit(signals.complexityScore);
 			if (complexity > 0) {
-				preferred += Math.round((this.config.complexityAllowanceTokens ?? 4000) * complexity);
+				preferred += Math.round((this.#config.complexityAllowanceTokens ?? 4000) * complexity);
 			}
 			const graphImpact = unit(signals.graphImpactScore);
 			if (graphImpact > 0) {
-				preferred += Math.round((this.config.graphImpactAllowanceTokens ?? 4000) * graphImpact);
+				preferred += Math.round((this.#config.graphImpactAllowanceTokens ?? 4000) * graphImpact);
 			}
 			const unresolved =
 				typeof signals.unresolvedIssueCount === "number" && Number.isFinite(signals.unresolvedIssueCount)
@@ -234,13 +234,13 @@ export class AdaptiveBudgetCalculator {
 					: 0;
 			if (unresolved > 0) {
 				preferred += Math.min(
-					unresolved * (this.config.tokensPerUnresolvedIssue ?? 1000),
-					this.config.maximumUnresolvedIssueAllowance ?? 8000,
+					unresolved * (this.#config.tokensPerUnresolvedIssue ?? 1000),
+					this.#config.maximumUnresolvedIssueAllowance ?? 8000,
 				);
 			}
 			const contradictionRate = unit(signals.recentContradictionRate);
 			if (contradictionRate > 0) {
-				preferred -= Math.round((this.config.contradictionPenaltyTokens ?? 1000) * contradictionRate * 3);
+				preferred -= Math.round((this.#config.contradictionPenaltyTokens ?? 1000) * contradictionRate * 3);
 			}
 			if (
 				typeof signals.usefulnessMovingAverage === "number" &&
@@ -248,15 +248,15 @@ export class AdaptiveBudgetCalculator {
 				signals.usefulnessMovingAverage < 0.5
 			) {
 				preferred -= Math.round(
-					(this.config.lowUsefulnessPenaltyTokens ?? 2000) * (1 - unit(signals.usefulnessMovingAverage)),
+					(this.#config.lowUsefulnessPenaltyTokens ?? 2000) * (1 - unit(signals.usefulnessMovingAverage)),
 				);
 			}
 		}
 
-		const shareCap = Math.floor(availableModelContextWindow * (this.config.maxMemorySharePercent / 100));
-		const calculated = Math.min(preferred, shareCap, this.config.absoluteMaxTokens);
+		const shareCap = Math.floor(availableModelContextWindow * (this.#config.maxMemorySharePercent / 100));
+		const calculated = Math.min(preferred, shareCap, this.#config.absoluteMaxTokens);
 
-		return Math.max(this.config.minimumTokens ?? 500, calculated);
+		return Math.max(this.#config.minimumTokens ?? 500, calculated);
 	}
 }
 
@@ -265,11 +265,11 @@ export class AdaptiveBudgetCalculator {
  * expansion step is worth its tokens.
  */
 export class ProgressiveExpansionController {
-	private config: AdaptiveBudgetConfig;
-	private steps: ProgressiveExpansionStep[] = [];
+	#config: AdaptiveBudgetConfig;
+	#steps: ProgressiveExpansionStep[] = [];
 
 	constructor(config: Partial<AdaptiveBudgetConfig> = {}) {
-		this.config = { ...DEFAULT_ADAPTIVE_CONFIG, ...config };
+		this.#config = { ...DEFAULT_ADAPTIVE_CONFIG, ...config };
 	}
 
 	evaluateExpansionTrigger(_triggerReason: string, triggerScore: number): "none" | "shadow" | "active" | "urgent" {
@@ -286,8 +286,8 @@ export class ProgressiveExpansionController {
 		currentTokens: number,
 		maxBudget: number,
 	): { allow: boolean; reason: string } {
-		if (stepIndex >= this.config.maxExpansions) {
-			return { allow: false, reason: `Reached maximum expansion limit (${this.config.maxExpansions})` };
+		if (stepIndex >= this.#config.maxExpansions) {
+			return { allow: false, reason: `Reached maximum expansion limit (${this.#config.maxExpansions})` };
 		}
 		if (currentTokens >= maxBudget) {
 			return { allow: false, reason: `Current token usage (${currentTokens}) meets max budget (${maxBudget})` };
@@ -305,11 +305,11 @@ export class ProgressiveExpansionController {
 	}
 
 	recordStep(step: ProgressiveExpansionStep): void {
-		this.steps.push(step);
+		this.#steps.push(step);
 	}
 
 	getSteps(): ProgressiveExpansionStep[] {
-		return [...this.steps];
+		return [...this.#steps];
 	}
 }
 
@@ -323,21 +323,21 @@ export class SmoothedUsefulnessEstimator {
 	static readonly DEFAULT_PRIOR_SCORE = 0.5;
 	static readonly DEFAULT_PRIOR_WEIGHT = 5;
 
-	private priorScore: number;
-	private priorWeight: number;
+	#priorScore: number;
+	#priorWeight: number;
 
 	constructor(
 		priorScore = SmoothedUsefulnessEstimator.DEFAULT_PRIOR_SCORE,
 		priorWeight = SmoothedUsefulnessEstimator.DEFAULT_PRIOR_WEIGHT,
 	) {
-		this.priorScore = priorScore;
-		this.priorWeight = priorWeight;
+		this.#priorScore = priorScore;
+		this.#priorWeight = priorWeight;
 	}
 
 	estimate(positiveCount: number, negativeCount: number): { score: number; totalObservations: number } {
 		const totalObservations = positiveCount + negativeCount;
-		const numerator = this.priorWeight * this.priorScore + positiveCount;
-		const denominator = this.priorWeight + totalObservations;
+		const numerator = this.#priorWeight * this.#priorScore + positiveCount;
+		const denominator = this.#priorWeight + totalObservations;
 		const score = numerator / denominator;
 		return { score, totalObservations };
 	}
@@ -351,43 +351,43 @@ export class SmoothedUsefulnessEstimator {
  * starting at 0.5) and a Bayesian-smoothed score once observations exist.
  */
 export class UsefulnessFeedbackManager {
-	private feedbackEvents: UsefulnessFeedbackEvent[] = [];
-	private usefulnessScores = new Map<string, number>();
-	private positiveCounts = new Map<string, number>();
-	private negativeCounts = new Map<string, number>();
-	private estimator = new SmoothedUsefulnessEstimator();
+	#feedbackEvents: UsefulnessFeedbackEvent[] = [];
+	#usefulnessScores = new Map<string, number>();
+	#positiveCounts = new Map<string, number>();
+	#negativeCounts = new Map<string, number>();
+	#estimator = new SmoothedUsefulnessEstimator();
 
 	recordFeedback(event: UsefulnessFeedbackEvent): void {
-		this.feedbackEvents.push(event);
+		this.#feedbackEvents.push(event);
 
 		if (event.rating === "useful") {
-			this.positiveCounts.set(event.memoryId, (this.positiveCounts.get(event.memoryId) ?? 0) + 1);
+			this.#positiveCounts.set(event.memoryId, (this.#positiveCounts.get(event.memoryId) ?? 0) + 1);
 		} else if (event.rating === "unhelpful") {
-			this.negativeCounts.set(event.memoryId, (this.negativeCounts.get(event.memoryId) ?? 0) + 1);
+			this.#negativeCounts.set(event.memoryId, (this.#negativeCounts.get(event.memoryId) ?? 0) + 1);
 		}
 
-		const currentScore = this.usefulnessScores.get(event.memoryId) ?? 0.5;
+		const currentScore = this.#usefulnessScores.get(event.memoryId) ?? 0.5;
 		let delta = 0;
 		if (event.rating === "useful") delta = 0.15;
 		else if (event.rating === "partially_used") delta = 0.05;
 		else if (event.rating === "unhelpful") delta = -0.2;
 
-		this.usefulnessScores.set(event.memoryId, Math.max(0.0, Math.min(1.0, currentScore + delta)));
+		this.#usefulnessScores.set(event.memoryId, Math.max(0.0, Math.min(1.0, currentScore + delta)));
 	}
 
 	getUsefulnessScore(memoryId: string): number {
-		return this.usefulnessScores.get(memoryId) ?? 0.5;
+		return this.#usefulnessScores.get(memoryId) ?? 0.5;
 	}
 
 	getSmoothedUsefulnessScore(memoryId: string): number {
-		const pos = this.positiveCounts.get(memoryId) ?? 0;
-		const neg = this.negativeCounts.get(memoryId) ?? 0;
-		if (pos === 0 && neg === 0) return this.usefulnessScores.get(memoryId) ?? 0.5;
-		return this.estimator.estimate(pos, neg).score;
+		const pos = this.#positiveCounts.get(memoryId) ?? 0;
+		const neg = this.#negativeCounts.get(memoryId) ?? 0;
+		if (pos === 0 && neg === 0) return this.#usefulnessScores.get(memoryId) ?? 0.5;
+		return this.#estimator.estimate(pos, neg).score;
 	}
 
 	getFeedbackEvents(): UsefulnessFeedbackEvent[] {
-		return [...this.feedbackEvents];
+		return [...this.#feedbackEvents];
 	}
 }
 

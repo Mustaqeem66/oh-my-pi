@@ -35,48 +35,48 @@ export interface TurnExecutionTrace {
  * overreacting to small sample counts.
  */
 export class UsefulnessFeedbackManager {
-	private feedbackEvents: UsefulnessFeedbackEvent[] = [];
-	private usefulnessScores = new Map<string, number>();
-	private positiveCounts = new Map<string, number>();
-	private negativeCounts = new Map<string, number>();
-	private estimator = new SmoothedUsefulnessEstimator();
+	#feedbackEvents: UsefulnessFeedbackEvent[] = [];
+	#usefulnessScores = new Map<string, number>();
+	#positiveCounts = new Map<string, number>();
+	#negativeCounts = new Map<string, number>();
+	#estimator = new SmoothedUsefulnessEstimator();
 
 	recordFeedback(event: UsefulnessFeedbackEvent): void {
-		this.feedbackEvents.push(event);
+		this.#feedbackEvents.push(event);
 
 		if (event.rating === "useful") {
-			const pos = (this.positiveCounts.get(event.memoryId) ?? 0) + 1;
-			this.positiveCounts.set(event.memoryId, pos);
+			const pos = (this.#positiveCounts.get(event.memoryId) ?? 0) + 1;
+			this.#positiveCounts.set(event.memoryId, pos);
 		} else if (event.rating === "unhelpful") {
-			const neg = (this.negativeCounts.get(event.memoryId) ?? 0) + 1;
-			this.negativeCounts.set(event.memoryId, neg);
+			const neg = (this.#negativeCounts.get(event.memoryId) ?? 0) + 1;
+			this.#negativeCounts.set(event.memoryId, neg);
 		}
 
-		const currentScore = this.usefulnessScores.get(event.memoryId) ?? 0.5;
+		const currentScore = this.#usefulnessScores.get(event.memoryId) ?? 0.5;
 		let delta = 0;
 		if (event.rating === "useful") delta = 0.15;
 		else if (event.rating === "partially_used") delta = 0.05;
 		else if (event.rating === "unhelpful") delta = -0.2;
 
 		const newScore = Math.max(0.0, Math.min(1.0, currentScore + delta));
-		this.usefulnessScores.set(event.memoryId, newScore);
+		this.#usefulnessScores.set(event.memoryId, newScore);
 	}
 
 	getUsefulnessScore(memoryId: string): number {
-		return this.usefulnessScores.get(memoryId) ?? 0.5;
+		return this.#usefulnessScores.get(memoryId) ?? 0.5;
 	}
 
 	getSmoothedUsefulnessScore(memoryId: string): number {
-		const pos = this.positiveCounts.get(memoryId) ?? 0;
-		const neg = this.negativeCounts.get(memoryId) ?? 0;
+		const pos = this.#positiveCounts.get(memoryId) ?? 0;
+		const neg = this.#negativeCounts.get(memoryId) ?? 0;
 		if (pos === 0 && neg === 0) {
-			return this.usefulnessScores.get(memoryId) ?? 0.5;
+			return this.#usefulnessScores.get(memoryId) ?? 0.5;
 		}
-		return this.estimator.estimate(pos, neg).score;
+		return this.#estimator.estimate(pos, neg).score;
 	}
 
 	getFeedbackEvents(): UsefulnessFeedbackEvent[] {
-		return [...this.feedbackEvents];
+		return [...this.#feedbackEvents];
 	}
 }
 
@@ -90,15 +90,15 @@ export class SmoothedUsefulnessEstimator {
 	static readonly DEFAULT_PRIOR_SCORE = 0.5;
 	static readonly DEFAULT_PRIOR_WEIGHT = 5;
 
-	private priorScore: number;
-	private priorWeight: number;
+	#priorScore: number;
+	#priorWeight: number;
 
 	constructor(
 		priorScore = SmoothedUsefulnessEstimator.DEFAULT_PRIOR_SCORE,
 		priorWeight = SmoothedUsefulnessEstimator.DEFAULT_PRIOR_WEIGHT,
 	) {
-		this.priorScore = priorScore;
-		this.priorWeight = priorWeight;
+		this.#priorScore = priorScore;
+		this.#priorWeight = priorWeight;
 	}
 
 	/**
@@ -108,8 +108,8 @@ export class SmoothedUsefulnessEstimator {
 	 */
 	estimate(positiveCount: number, negativeCount: number): { score: number; totalObservations: number } {
 		const totalObservations = positiveCount + negativeCount;
-		const numerator = this.priorWeight * this.priorScore + positiveCount;
-		const denominator = this.priorWeight + totalObservations;
+		const numerator = this.#priorWeight * this.#priorScore + positiveCount;
+		const denominator = this.#priorWeight + totalObservations;
 		const score = numerator / denominator;
 		return { score, totalObservations };
 	}
