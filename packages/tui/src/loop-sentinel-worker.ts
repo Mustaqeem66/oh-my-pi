@@ -1,5 +1,5 @@
 import { parentPort } from "node:worker_threads";
-import { logger } from "@oh-my-pi/pi-utils/logger";
+import * as logger from "@oh-my-pi/pi-utils/logger";
 import { consumeWorkerInbox } from "@oh-my-pi/pi-utils/worker-host";
 import {
 	createSentinelJudge,
