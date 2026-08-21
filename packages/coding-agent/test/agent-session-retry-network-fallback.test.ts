@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import * as AIError from "@oh-my-pi/pi-ai/error";
-import { isLocalTransportFailure } from "@oh-my-pi/pi-coding-agent/session/retry-transport-failure";
+import {
+	LOCAL_TRANSPORT_FAILURE_RE,
+	isLocalTransportFailure,
+} from "@oh-my-pi/pi-coding-agent/session/retry-transport-failure";
 
 // Classified error ids as `AIError.classifyMessage` produces them. The reporter
 // of issue #9165 attached 135168 (Class|Transient) and 397312
@@ -69,6 +72,10 @@ describe("isLocalTransportFailure", () => {
 			expect(isLocalTransportFailure(TRANSIENT, TRANSPORT_WORDING_WITH_STATUS, undefined)).toBe(false);
 		});
 
+		it("rejects a connection error that answered with 500", () => {
+			expect(isLocalTransportFailure(TRANSIENT, "connection error", 500)).toBe(false);
+		});
+
 		it("rejects an account-scoped usage cap", () => {
 			// Rotating to another model is the right instant recovery here.
 			expect(isLocalTransportFailure(TRANSIENT_USAGE_LIMIT, SOCKET_HANG_UP, undefined)).toBe(false);
@@ -91,5 +98,15 @@ describe("isLocalTransportFailure", () => {
 		it("rejects transient wording that is not a transport fault", () => {
 			expect(isLocalTransportFailure(TRANSIENT, NOT_A_TRANSPORT_FAULT, undefined)).toBe(false);
 		});
+	});
+});
+
+describe("LOCAL_TRANSPORT_FAILURE_RE", () => {
+	it("stays narrower than the generic transient-transport wording", () => {
+		// If this ever matches, the predicate would swallow route-specific
+		// provider rejections and stall a fallback that should switch instantly.
+		expect(LOCAL_TRANSPORT_FAILURE_RE.test("overloaded_error")).toBe(false);
+		expect(LOCAL_TRANSPORT_FAILURE_RE.test("rate_limit_error")).toBe(false);
+		expect(LOCAL_TRANSPORT_FAILURE_RE.test("server_error")).toBe(false);
 	});
 });
