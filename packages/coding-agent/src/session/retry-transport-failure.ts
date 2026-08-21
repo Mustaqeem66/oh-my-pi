@@ -11,7 +11,8 @@ import * as AIError from "@oh-my-pi/pi-ai/error";
  * matches route-specific provider rejections (429, 5xx, "overloaded"), which
  * genuinely are worth switching model for without waiting.
  */
-const LOCAL_TRANSPORT_FAILURE_RE = /socket (?:hang up|connection was closed)|other side closed|fetch failed|\b(?:ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ENETUNREACH|ENETDOWN|EHOSTUNREACH|EPIPE)\b|network.?error|connection.?error|connection.?refused|unable.?to.?connect|reset before headers|waiting for the first event/i;
+const LOCAL_TRANSPORT_FAILURE_RE =
+	/socket (?:hang up|connection was closed)|other side closed|fetch failed|\b(?:ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ENETUNREACH|ENETDOWN|EHOSTUNREACH|EPIPE)\b|network.?error|connection.?error|connection.?refused|unable.?to.?connect|reset before headers|waiting for the first event/i;
 
 /**
  * Whether a retryable failure is a *local* transport fault (dead socket,
