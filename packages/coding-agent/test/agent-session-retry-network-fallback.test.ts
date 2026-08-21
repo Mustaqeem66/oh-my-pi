@@ -1,159 +1,95 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as path from "node:path";
-import { scheduler } from "node:timers/promises";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { describe, expect, it } from "bun:test";
+import * as AIError from "@oh-my-pi/pi-ai/error";
+import { isLocalTransportFailure } from "@oh-my-pi/pi-coding-agent/session/retry-transport-failure";
 
-type AutoRetryStartEvent = Extract<AgentSessionEvent, { type: "auto_retry_start" }>;
+// Classified error ids as `AIError.classifyMessage` produces them. The reporter
+// of issue #9165 attached 135168 (Class|Transient) and 397312
+// (Class|Transient|Timeout) to their session log.
+const TRANSIENT = AIError.create(AIError.Flag.Transient);
+const TRANSIENT_TIMEOUT = AIError.create(AIError.Flag.Transient, AIError.Flag.Timeout);
+const TRANSIENT_USAGE_LIMIT = AIError.create(AIError.Flag.Transient, AIError.Flag.UsageLimit);
+const CONTEXT_OVERFLOW = AIError.create(AIError.Flag.ContextOverflow);
 
-// Bun surfaces a dropped socket with this exact wording, and it is what the
-// reporter of issue #9165 saw while switching proxies mid-turn. It carries no
-// HTTP status: nothing on the far side ever answered.
-const LOCAL_SOCKET_CLOSE_ERROR = "The socket connection was closed unexpectedly";
-// A provider that answered — the fault is route-specific, so an instant model
-// switch stays correct.
-const PROVIDER_OVERLOAD_ERROR = "overloaded_error: provider returned error 503";
+// Bun's exact wording for a dropped socket, and what the reporter saw while
+// switching proxies mid-turn. Nothing on the far side ever answered.
+const SOCKET_CLOSED = "The socket connection was closed unexpectedly";
+const CONNECTION_REFUSED = "fetch failed: connect ECONNREFUSED 127.0.0.1:8787";
+const DNS_FAILURE = "fetch failed: getaddrinfo EAI_AGAIN api.anthropic.com";
+const FIRST_EVENT_TIMEOUT = "Timed out waiting for the first event";
+const SOCKET_HANG_UP = "socket hang up";
 
-describe("AgentSession retry fallback backoff on network failures", () => {
-	let tempDir: TempDir;
-	let authStorage: AuthStorage;
-	let sharedRegistry: ModelRegistry;
-	let modelRegistry: ModelRegistry;
-	let session: AgentSession | undefined;
+const PROVIDER_OVERLOADED = "overloaded_error: provider returned error 503";
+const PROVIDER_RATE_LIMITED = "rate_limit_error: too many requests";
+const TRANSPORT_WORDING_WITH_STATUS = "fetch failed with status 503";
+const NOT_A_TRANSPORT_FAULT = "thought-only response without final output";
 
-	beforeAll(async () => {
-		tempDir = TempDir.createSync("@pi-retry-network-fallback-");
-		await initTheme();
-		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
-		authStorage.setRuntimeApiKey("anthropic", "anthropic-test-key");
-		authStorage.setRuntimeApiKey("openai", "openai-test-key");
-		sharedRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models.yml"));
+describe("isLocalTransportFailure", () => {
+	it("pins the reporter's error ids to the documented flag combinations", () => {
+		// Guards the premise of issue #9165: these are the exact ids the
+		// reporter saw, so the predicate must key off the flags producing them.
+		expect(TRANSIENT).toBe(135168);
+		expect(TRANSIENT_TIMEOUT).toBe(397312);
 	});
 
-	afterAll(() => {
-		authStorage.close();
-		tempDir.removeSync();
-	});
-
-	beforeEach(() => {
-		modelRegistry = sharedRegistry;
-		modelRegistry.clearSuppressedSelectors();
-	});
-
-	afterEach(async () => {
-		if (session) {
-			await session.dispose();
-			session = undefined;
-		}
-		vi.restoreAllMocks();
-	});
-
-	/**
-	 * Builds a session whose primary model always fails with `failure` and whose
-	 * last chain entry recovers, so the fallback chain is walked end to end.
-	 */
-	function createChainSession(failure: string): {
-		retryStartEvents: AutoRetryStartEvent[];
-		requestedModels: string[];
-	} {
-		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-5");
-		const firstFallback = getBundledModel("openai", "gpt-4o-mini");
-		const secondFallback = getBundledModel("openai", "gpt-4o");
-		if (!primaryModel || !firstFallback || !secondFallback) {
-			throw new Error("Expected bundled test models to exist");
-		}
-
-		const requestedModels: string[] = [];
-		const mock = createMockModel();
-		const agent = new Agent({
-			getApiKey: model => `${model.provider}-test-key`,
-			initialState: {
-				model: primaryModel,
-				systemPrompt: ["Test"],
-				tools: [],
-				messages: [],
-			},
-			streamFn: (model, context, options) => {
-				requestedModels.push(`${model.provider}/${model.id}`);
-				if (model.provider === secondFallback.provider && model.id === secondFallback.id) {
-					mock.push({ content: ["Recovered on second fallback"] });
-				} else {
-					mock.push({ throw: failure });
-				}
-				return mock.stream(model, context, options);
-			},
+	describe("local transport faults keep the backoff", () => {
+		it("treats an unexpectedly closed socket as local", () => {
+			expect(isLocalTransportFailure(TRANSIENT, SOCKET_CLOSED, undefined)).toBe(true);
 		});
 
-		const settings = Settings.isolated({
-			"compaction.enabled": false,
-			"retry.baseDelayMs": 400,
-			"retry.maxRetries": 3,
-			"retry.fallbackChains": {
-				default: [
-					`${firstFallback.provider}/${firstFallback.id}`,
-					`${secondFallback.provider}/${secondFallback.id}`,
-				],
-			},
-		});
-		settings.setModelRole("default", `${primaryModel.provider}/${primaryModel.id}`);
-
-		session = new AgentSession({
-			agent,
-			sessionManager: SessionManager.inMemory(),
-			settings,
-			modelRegistry,
+		it("treats a refused connection as local", () => {
+			expect(isLocalTransportFailure(TRANSIENT, CONNECTION_REFUSED, undefined)).toBe(true);
 		});
 
-		const retryStartEvents: AutoRetryStartEvent[] = [];
-		session.subscribe(event => {
-			if (event.type === "auto_retry_start") retryStartEvents.push(event);
+		it("treats a DNS failure as local", () => {
+			expect(isLocalTransportFailure(TRANSIENT, DNS_FAILURE, undefined)).toBe(true);
 		});
-		return { retryStartEvents, requestedModels };
-	}
 
-	it("keeps the configured backoff when model fallback follows a local transport failure", async () => {
-		// Regression: issue #9165. A dropped socket is not a model fault — every
-		// entry in `fallbackChains` dials the same dead network. Zeroing the delay
-		// on the model switch burned the whole chain within milliseconds and ended
-		// the turn without ever honoring `retry.baseDelayMs`.
-		const waitSpy = vi.spyOn(scheduler, "wait").mockResolvedValue(undefined);
-		const { retryStartEvents, requestedModels } = createChainSession(LOCAL_SOCKET_CLOSE_ERROR);
+		it("treats a stream with no first event as local", () => {
+			expect(isLocalTransportFailure(TRANSIENT_TIMEOUT, FIRST_EVENT_TIMEOUT, undefined)).toBe(true);
+		});
 
-		await session?.prompt("Recover from a proxy switch");
-		await session?.waitForIdle();
-
-		// The chain is still walked — this fix changes the pacing, not the routing.
-		expect(requestedModels).toHaveLength(3);
-		expect(retryStartEvents).toHaveLength(2);
-		for (const event of retryStartEvents) {
-			expect(event.errorMessage).toBe(LOCAL_SOCKET_CLOSE_ERROR);
-			expect(event.delayMs).toBeGreaterThan(0);
-		}
-		// And the backoff is actually slept on, not merely reported.
-		for (const call of waitSpy.mock.calls) {
-			expect(call[0]).toBeGreaterThan(0);
-		}
-		expect(waitSpy).toHaveBeenCalled();
+		it("treats a socket hang up as local", () => {
+			expect(isLocalTransportFailure(TRANSIENT, SOCKET_HANG_UP, undefined)).toBe(true);
+		});
 	});
 
-	it("still switches models without delay for a provider-side transient rejection", async () => {
-		// Control for the case above: a 503 proves the provider was reachable, so
-		// the failure is route-specific and another model can serve immediately.
-		vi.spyOn(scheduler, "wait").mockResolvedValue(undefined);
-		const { retryStartEvents, requestedModels } = createChainSession(PROVIDER_OVERLOAD_ERROR);
+	describe("route-specific rejections keep the instant model switch", () => {
+		it("rejects an overloaded provider that answered with 503", () => {
+			expect(isLocalTransportFailure(TRANSIENT, PROVIDER_OVERLOADED, 503)).toBe(false);
+		});
 
-		await session?.prompt("Recover from provider overload");
-		await session?.waitForIdle();
+		it("rejects a rate limit that answered with 429", () => {
+			expect(isLocalTransportFailure(TRANSIENT, PROVIDER_RATE_LIMITED, 429)).toBe(false);
+		});
 
-		expect(requestedModels).toHaveLength(3);
-		expect(retryStartEvents.map(event => event.delayMs)).toEqual([0, 0]);
+		it("rejects transport wording that still carries a parsed status", () => {
+			// `fetch failed` matches the local pattern, but a status means the
+			// far side answered. The discriminator is the absence of a status,
+			// not the wording.
+			expect(isLocalTransportFailure(TRANSIENT, TRANSPORT_WORDING_WITH_STATUS, undefined)).toBe(false);
+		});
+
+		it("rejects an account-scoped usage cap", () => {
+			// Rotating to another model is the right instant recovery here.
+			expect(isLocalTransportFailure(TRANSIENT_USAGE_LIMIT, SOCKET_HANG_UP, undefined)).toBe(false);
+		});
+	});
+
+	describe("non-retryable and malformed inputs", () => {
+		it("rejects an error that is neither transient nor a timeout", () => {
+			expect(isLocalTransportFailure(CONTEXT_OVERFLOW, "fetch failed", undefined)).toBe(false);
+		});
+
+		it("rejects an undefined error id", () => {
+			expect(isLocalTransportFailure(undefined, "fetch failed", undefined)).toBe(false);
+		});
+
+		it("rejects a transient error with no message to classify", () => {
+			expect(isLocalTransportFailure(TRANSIENT, undefined, undefined)).toBe(false);
+		});
+
+		it("rejects transient wording that is not a transport fault", () => {
+			expect(isLocalTransportFailure(TRANSIENT, NOT_A_TRANSPORT_FAULT, undefined)).toBe(false);
+		});
 	});
 });
