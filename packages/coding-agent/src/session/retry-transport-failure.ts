@@ -1,5 +1,4 @@
 import * as AIError from "@oh-my-pi/pi-ai/error";
-import { isUnexpectedSocketCloseMessage } from "@oh-my-pi/pi-utils";
 
 /**
  * A *local* transport fault: the socket died, the connection was refused, DNS
@@ -8,12 +7,11 @@ import { isUnexpectedSocketCloseMessage } from "@oh-my-pi/pi-utils";
  * health of the model that was asked — every other model in `fallbackChains`
  * dials the same dead network and fails just as fast.
  *
- * Deliberately narrower than {@link AIError.TRANSIENT_TRANSPORT_PATTERN}: that
- * one also matches route-specific provider rejections (429, 5xx, "overloaded"),
- * which genuinely are worth switching model for without waiting.
+ * Deliberately narrower than the generic transient-transport wording: that also
+ * matches route-specific provider rejections (429, 5xx, "overloaded"), which
+ * genuinely are worth switching model for without waiting.
  */
-export const LOCAL_TRANSPORT_FAILURE_RE =
-	/socket (?:hang up|connection was closed)|other side closed|fetch failed|\b(?:ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ENETUNREACH|ENETDOWN|EHOSTUNREACH|EPIPE)\b|network.?error|connection.?error|connection.?refused|unable.?to.?connect|reset before headers|waiting for the first event/i;
+const LOCAL_TRANSPORT_FAILURE_RE = /socket (?:hang up|connection was closed)|other side closed|fetch failed|\b(?:ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ENETUNREACH|ENETDOWN|EHOSTUNREACH|EPIPE)\b|network.?error|connection.?error|connection.?refused|unable.?to.?connect|reset before headers|waiting for the first event/i;
 
 /**
  * Whether a retryable failure is a *local* transport fault (dead socket,
@@ -40,6 +38,6 @@ export function isLocalTransportFailure(
 	// another model is exactly the right instant recovery.
 	if (AIError.is(errorId, AIError.Flag.UsageLimit)) return false;
 	if (!errorMessage) return false;
-	if (!isUnexpectedSocketCloseMessage(errorMessage) && !LOCAL_TRANSPORT_FAILURE_RE.test(errorMessage)) return false;
+	if (!LOCAL_TRANSPORT_FAILURE_RE.test(errorMessage)) return false;
 	return (errorStatus ?? AIError.status({ message: errorMessage })) === undefined;
 }
