@@ -1,10 +1,19 @@
-import * as path from "node:path";
+/**
+ * Regression test for issue #7900: `ensureSharedBrowser` retries a start up to
+ * three times, and a daemon record that settled `exited`/`failed` is restarted
+ * without any stop. On Windows the launcher settles terminal while Chromium
+ * keeps running, so every acquisition could leak another browser tree. The
+ * launcher pid is discarded at settle time, so the orphans are identified by
+ * their `--user-data-dir` profile instead.
+ */
+
 import { describe, expect, it } from "bun:test";
+import * as path from "node:path";
 import {
 	matchesSharedBrowserProfile,
 	reapOrphanedSharedBrowsers,
 	sharedBrowserDaemonName,
-} from "../../src/tools/browser/shared-daemon";
+} from "@oh-my-pi/pi-coding-agent/tools/browser/shared-daemon";
 
 const PROFILE = path.resolve("/tmp/omp-runtime/omp.browser.headless.profile");
 
