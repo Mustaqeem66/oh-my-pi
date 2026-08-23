@@ -10,7 +10,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Process } from "@oh-my-pi/pi-natives";
+import { Process, ProcessStatus } from "@oh-my-pi/pi-natives";
 import { logger } from "@oh-my-pi/pi-utils";
 import { daemonClientForProject } from "../../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../../launch/ensure";
@@ -111,7 +111,7 @@ export function reapOrphanedSharedBrowsers(executablePath: string, userDataDir: 
 	try {
 		for (const candidate of Process.fromPath(executablePath)) {
 			try {
-				if (candidate.status() !== "running") continue;
+				if (candidate.status() !== ProcessStatus.Running) continue;
 				if (!matchesSharedBrowserProfile(candidate.args(), userDataDir)) continue;
 				candidate.killTree();
 				reaped++;
