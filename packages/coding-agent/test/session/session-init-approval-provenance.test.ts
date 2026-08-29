@@ -74,6 +74,9 @@ describe("subagent session_init approval provenance", () => {
 			tools: ["read", "eval"],
 			approvalMode: (sub.get("tools.approvalMode") ?? "yolo") as string,
 			approval: sub.get("tools.approval") as Record<string, unknown> | undefined,
+			// Subagents run headless: no TTY is attached, so the transcript has to
+			// record that no prompt could have been surfaced to a human even when
+			// the inherited policy map would otherwise have asked for one.
 			hasUI: false,
 		});
 		// Flush buffered entries so the record is readable off disk.
