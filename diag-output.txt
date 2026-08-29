@@ -1,0 +1,75 @@
+bun: 1.4.0
+git: git version 2.55.0
+kernel: Linux runnervm76wwg 6.8.0-1064-azure #72~22.04.1-Ubuntu SMP Wed Jul 22 23:39:45 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+fs: ext2/ext3
+
+===== RUN 1 =====
+bun test v1.4.0 (34cbb9a40)
+
+::group::test/issue-966-repro.test.ts:
+(pass) issue #966 split commit restaging > recreates split commits when one commit contains a newly created file [106.86ms]
+
+::endgroup::
+
+ 1 pass
+ 0 fail
+ 1 expect() calls
+Ran 1 test across 1 file. [128.00ms]
+----- exit=0 -----
+
+===== RUN 2 =====
+bun test v1.4.0 (34cbb9a40)
+
+::group::test/issue-966-repro.test.ts:
+(pass) issue #966 split commit restaging > recreates split commits when one commit contains a newly created file [197.15ms]
+
+::endgroup::
+
+ 1 pass
+ 0 fail
+ 1 expect() calls
+Ran 1 test across 1 file. [215.00ms]
+----- exit=0 -----
+
+===== RUN 3 =====
+bun test v1.4.0 (34cbb9a40)
+
+::group::test/issue-966-repro.test.ts:
+(pass) issue #966 split commit restaging > recreates split commits when one commit contains a newly created file [194.61ms]
+
+::endgroup::
+
+ 1 pass
+ 0 fail
+ 1 expect() calls
+Ran 1 test across 1 file. [211.00ms]
+----- exit=0 -----
+
+===== RUN 4 =====
+bun test v1.4.0 (34cbb9a40)
+
+::group::test/issue-966-repro.test.ts:
+(pass) issue #966 split commit restaging > recreates split commits when one commit contains a newly created file [158.68ms]
+
+::endgroup::
+
+ 1 pass
+ 0 fail
+ 1 expect() calls
+Ran 1 test across 1 file. [175.00ms]
+----- exit=0 -----
+
+===== RUN 5 =====
+bun test v1.4.0 (34cbb9a40)
+
+::group::test/issue-966-repro.test.ts:
+(pass) issue #966 split commit restaging > recreates split commits when one commit contains a newly created file [266.12ms]
+
+::endgroup::
+
+ 1 pass
+ 0 fail
+ 1 expect() calls
+Ran 1 test across 1 file. [282.00ms]
+----- exit=0 -----
+
