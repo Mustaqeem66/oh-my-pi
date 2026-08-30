@@ -1,0 +1,44 @@
+name: bootstrap-10164
+
+on:
+  push:
+    branches:
+      - fix/10164-inherit-approval-mode
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/10164-inherit-approval-mode
+
+      - name: Skip if bootstrap already consumed
+        id: guard
+        run: |
+          if [ -f .github/bootstrap-10164.py ]; then
+            echo "run=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply anchored patches
+        if: steps.guard.outputs.run == 'yes'
+        run: python3 .github/bootstrap-10164.py
+
+      - name: Remove bootstrap files
+        if: steps.guard.outputs.run == 'yes'
+        run: git rm -q .github/bootstrap-10164.py .github/workflows/bootstrap-10164.yml
+
+      - name: Commit and push
+        if: steps.guard.outputs.run == 'yes'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat(task): add opt-in task.inheritApprovalMode for subagents (#10164, #10124)"
+          git push origin HEAD:fix/10164-inherit-approval-mode
