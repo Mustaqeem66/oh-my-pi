@@ -37,29 +37,46 @@ const VALID_TOOL_SOURCE = [
 	"});",
 ].join("\n");
 
-/** Recurses until the engine gives up, reproducing the shape of #8900. */
-const STACK_OVERFLOW_SOURCE = ["function recurse() {", "\treturn recurse();", "}", "recurse();"].join("\n");
+/**
+ * Recurses until the engine gives up, reproducing the shape of #8900.
+ *
+ * The recursive call MUST stay out of tail position. A bare `return recurse();`
+ * is a proper tail call, and because ES modules are always strict mode
+ * JavaScriptCore reuses the frame instead of pushing one — the fixture then
+ * spins forever rather than throwing, wedging the chunk until the runner's
+ * 600s watchdog SIGKILLs it. Consuming the result (`... + 1`) forces the frame
+ * to be kept, so the stack is genuinely exhausted within milliseconds.
+ */
+const STACK_OVERFLOW_SOURCE = ["function recurse(depth) {", "\treturn recurse(depth + 1) + 1;", "}", "recurse(0);"].join(
+	"\n",
+);
 
 describe("custom tool load error reporting (#8900)", () => {
-	it("names the offending file and explains a blown stack at import time", async () => {
-		// The reporter saw a bare `RangeError: Maximum call stack size exceeded`
-		// with no path and no cause; the only record of which module was at fault
-		// lived in ~/.omp/logs/omp*.log.
-		const overflowTool = await writeTool("stack-overflow.js", STACK_OVERFLOW_SOURCE);
-		const validTool = await writeTool("valid.js", VALID_TOOL_SOURCE);
+	it(
+		"names the offending file and explains a blown stack at import time",
+		async () => {
+			// The reporter saw a bare `RangeError: Maximum call stack size exceeded`
+			// with no path and no cause; the only record of which module was at fault
+			// lived in ~/.omp/logs/omp*.log.
+			const overflowTool = await writeTool("stack-overflow.js", STACK_OVERFLOW_SOURCE);
+			const validTool = await writeTool("valid.js", VALID_TOOL_SOURCE);
 
-		const result = await loadCustomTools([{ path: overflowTool }, { path: validTool }], requireTempRoot(), []);
+			const result = await loadCustomTools([{ path: overflowTool }, { path: validTool }], requireTempRoot(), []);
 
-		// Fault isolation still holds: the good tool loads.
-		expect(result.tools.map(tool => tool.tool.name)).toEqual(["safe_custom_tool"]);
-		expect(result.errors).toHaveLength(1);
-		expect(result.errors[0]?.path).toBe(overflowTool);
+			// Fault isolation still holds: the good tool loads.
+			expect(result.tools.map(tool => tool.tool.name)).toEqual(["safe_custom_tool"]);
+			expect(result.errors).toHaveLength(1);
+			expect(result.errors[0]?.path).toBe(overflowTool);
 
-		const message = result.errors[0]?.error ?? "";
-		expect(message).toContain(overflowTool);
-		expect(message).toContain("import type");
-		expect(message).toContain("@oh-my-pi/pi-coding-agent");
-	});
+			const message = result.errors[0]?.error ?? "";
+			expect(message).toContain(overflowTool);
+			expect(message).toContain("import type");
+			expect(message).toContain("@oh-my-pi/pi-coding-agent");
+		},
+		// A regression that reintroduces the tail call must fail fast here rather
+		// than stalling the whole chunk until the 600s watchdog fires.
+		15_000,
+	);
 
 	it("reports the resolved absolute path when the configured path is relative", async () => {
 		const absolutePath = await writeTool("relative-fail.js", 'throw new Error("module blew up");');
